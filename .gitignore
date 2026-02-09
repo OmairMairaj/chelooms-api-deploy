@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment (clone .env.example and fill in)
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build / misc
+dist/
+coverage/
+.nyc_output/
