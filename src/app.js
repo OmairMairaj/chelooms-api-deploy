@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const routes = require('./routes');
+const routes = require('./routes/index');
 
 const app = express();
 
@@ -14,9 +14,7 @@ app.use(express.json());
 app.use('/api/v1', routes);
 
 // --- Health Check ---
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', service: 'Chelooms API' });
-});
+
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {

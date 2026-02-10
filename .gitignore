@@ -25,3 +25,5 @@ Thumbs.db
 dist/
 coverage/
 .nyc_output/
+
+/src/generated/prisma
