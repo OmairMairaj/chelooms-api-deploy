@@ -2,44 +2,68 @@ const { prisma } = require('../config/db');
 const bcrypt = require('bcryptjs');
 const {generateAccessToken, generateRefreshToken, hashToken} = require('../utils/tokenGenerator');
 const { logAuthEvent } = require('./auditService');
+const { verifyGoogleToken, verifyFacebookToken } = require('../utils/socialAuth');
 
 const registerUser = async (userData) => {
     const { first_name, last_name, email, password, mobile_number } = userData;
 
-    // 1. Check karo user already exist to nahi karta?
-    const existingUser = await prisma.user.findFirst({
-        where: {
-            OR: [
-                { email: email },
-                { mobile_number: mobile_number }
-            ]
-        }
-    });
+    // 1. Dynamic Check Logic (Jo cheez user ne di hai, bas wahi check karo)
+    const checkConditions = [];
+    if (email) checkConditions.push({ email });
+    if (mobile_number) checkConditions.push({ mobile_number });
 
-    if (existingUser) {
-        throw new Error('User already exists with this email or mobile number');
+    if (checkConditions.length > 0) {
+        const existingUser = await prisma.user.findFirst({
+            where: {
+                OR: checkConditions
+            }
+        });
+
+        if (existingUser) {
+            throw new Error('User already exists with this email or mobile number');
+        }
     }
 
-    // 2. Password Hash karo (Security)
+    // 2. Hash Password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 3. User Create karo (Database mein save)
+    // 3. Create User
+    // Jo value nahi aayi (undefined), Prisma usay database mein NULL save karega automatically
     const newUser = await prisma.user.create({
         data: {
             first_name,
             last_name,
-            email,
-            mobile_number,
+            email,           // Agar ye undefined hai to DB mein Null jayega
+            mobile_number,   // Agar ye undefined hai to DB mein Null jayega
             password_hash: hashedPassword,
-            role: 'Registered', // Default role
+            role: 'Registered',
             is_email_verified: false
         }
     });
 
-    // 4. Password wapas mat bhejo return mein
     const { password_hash, ...userWithoutPassword } = newUser;
     return userWithoutPassword;
+};
+
+// Email ya mobile se user check karo, agar mila to puri row (password_hash ke bina) return
+const getUserByEmailOrPhone = async ({ email, mobile_number }) => {
+    const checkConditions = [];
+    if (email) checkConditions.push({ email });
+    if (mobile_number) checkConditions.push({ mobile_number });
+
+    if (checkConditions.length === 0) return null;
+
+    const user = await prisma.user.findFirst({
+        where: {
+            OR: checkConditions,
+            deleted_at: null
+        }
+    });
+
+    if (!user) return null;
+    const { password_hash, ...userRow } = user;
+    return userRow;
 };
 
 
@@ -229,9 +253,124 @@ const logoutUser = async (incomingRefreshToken) => {
 
 
 
+//Social Login
+const loginWithSocial = async ({ provider, token, ipAddress, userAgent }) => {
+    
+    // 1. Provider ke hisab se user data nikalo
+    let socialUser;
+    if (provider === 'Google') {
+        socialUser = await verifyGoogleToken(token);
+    } else if (provider === 'Facebook') { // 'Microsoft' ki jagah Facebook
+        socialUser = await verifyFacebookToken(token);
+    } else {
+        throw new Error('Unsupported Provider');
+    }
+
+    // 2. Check: Kya ye Social ID pehle se linked hai?
+    let linkedIdentity = await prisma.socialIdentity.findUnique({
+        where: {
+            provider_provider_uid: { // Composite Key Search
+                provider: provider,
+                provider_uid: socialUser.provider_uid
+            }
+        },
+        include: { user: true } // User ka data bhi saath le aao
+    });
+
+    let user;
+
+    if (linkedIdentity) {
+        // CASE A: User pehle se linked hai -> Direct Login
+        user = linkedIdentity.user;
+    } else {
+        // CASE B: Link nahi hai. Check karo kya email pehle se exist karta hai?
+        // Note: Agar email nahi mila (Facebook se), to humein naya user banana padega
+        if (socialUser.email) {
+            user = await prisma.user.findUnique({
+                where: { email: socialUser.email }
+            });
+        }
+
+        if (user) {
+            // User mil gaya (Email match) -> Account Link kardo
+            await prisma.socialIdentity.create({
+                data: {
+                    user_id: user.user_id,
+                    provider: provider,
+                    provider_uid: socialUser.provider_uid
+                }
+            });
+        } else {
+            // CASE C: Bilkul naya banda hai -> Register New User + Link Identity
+            
+            // Transaction use karenge taaki dono tables mein ek sath entry ho
+            user = await prisma.$transaction(async (tx) => {
+                // 1. Create User
+                const newUser = await tx.user.create({
+                    data: {
+                        first_name: socialUser.first_name,
+                        last_name: socialUser.last_name,
+                        email: socialUser.email, // Can be null
+                        is_email_verified: socialUser.is_email_verified,
+                        profile_picture_url: socialUser.picture,
+                        role: 'Registered'
+                    }
+                });
+
+                // 2. Create Identity Link
+                await tx.socialIdentity.create({
+                    data: {
+                        user_id: newUser.user_id,
+                        provider: provider,
+                        provider_uid: socialUser.provider_uid
+                    }
+                });
+
+                return newUser;
+            });
+        }
+    }
+
+    // 3. Login Process (Session Generate) - Reuse existing logic
+    // Hum wahi session logic use karenge jo 'loginUser' mein tha
+    // Lekin code duplication se bachne ke liye hum session creation yahan repeat kar rahe hain
+    // (Behtar ye hota ke session creation ka alag function hota, but abhi ke liye ye fine hai)
+
+    const accessToken = generateAccessToken(user.user_id);
+    const refreshToken = generateRefreshToken(user.user_id);
+    const refreshTokenHash = hashToken(refreshToken);
+    
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // Save Session
+    await prisma.userSession.create({
+        data: {
+            user_id: user.user_id,
+            refresh_token_hash: refreshTokenHash,
+            device_info: userAgent || "Unknown Device",
+            ip_address: ipAddress || "0.0.0.0",
+            expires_at: expiresAt
+        }
+    });
+
+    // Log Audit
+    await logAuthEvent({
+        identifier: socialUser.email || "Social User",
+        attemptType: 'login',
+        status: 'success',
+        ipAddress, userAgent
+    });
+
+    return { user, accessToken, refreshToken };
+};
+
+
 module.exports = {
     registerUser,
     loginUser,
+    getUserByEmailOrPhone,
     refreshAccessToken,
-    logoutUser
+    logoutUser,
+    loginWithSocial
 };

@@ -23,6 +23,7 @@ enum AuthProviderType {
   Google
   Microsoft
   Apple
+  Facebook
 }
 
 enum AuthAttemptType {

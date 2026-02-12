@@ -65,17 +65,26 @@ const authService = require('../services/authService');
 
 
 const register = async (req, res) => {
-    // ... (Purana code same rahega)
     try {
         const { first_name, last_name, email, password, mobile_number } = req.body;
 
-        if (!first_name || !last_name || !email || !password || !mobile_number) {
+        // 1. Mandatory Fields Check (First Name, Last Name, Password)
+        if (!first_name || !last_name || !password) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Please provide first name, last name, email, mobile, and password" 
+                message: "First Name, Last Name, and Password are required." 
             });
         }
 
+        // 2. Conditional Check (Kam se kam ek cheez honi chahiye: Email YA Mobile)
+        if (!email && !mobile_number) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please provide either an Email or a Mobile Number." 
+            });
+        }
+
+        // Service Call
         const user = await authService.registerUser({ 
             first_name, last_name, email, password, mobile_number 
         });
@@ -154,10 +163,72 @@ const getMe = async (req, res) => {
     });
 };
 
+// Email ya phone se user check karo, agar hai to puri row return
+const checkUser = async (req, res) => {
+    try {
+        const { email, mobile_number } = req.body;
+
+        if (!email && !mobile_number) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide either Email or Mobile Number."
+            });
+        }
+
+        const user = await authService.getUserByEmailOrPhone({ email, mobile_number });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "User found",
+            data: user
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
+const socialLogin = async (req, res) => {
+    try {
+        const { provider, token } = req.body;
+        
+        // IP Address extract (Security)
+        const ipAddress = req.ip || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+
+        if (!provider || !token) {
+            return res.status(400).json({ success: false, message: "Provider and Token are required" });
+        }
+
+        const result = await authService.loginWithSocial({ 
+            provider, token, ipAddress, userAgent 
+        });
+
+        res.status(200).json({
+            success: true,
+            message: `Welcome via ${provider}!`,
+            ...result
+        });
+
+    } catch (error) {
+        console.error("Social Login Error:", error);
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     register,
     login,
     refreshToken,
     logout,
-    getMe
+    getMe,
+    checkUser,
+    socialLogin
 };
