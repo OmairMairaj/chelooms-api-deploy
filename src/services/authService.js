@@ -67,28 +67,40 @@ const getUserByEmailOrPhone = async ({ email, mobile_number }) => {
 };
 
 
-const loginUser = async ({ email, password, ipAddress, userAgent }) => {
-    // 1. User Find Karo
-    const user = await prisma.user.findUnique({ where: { email } });
 
-    // Agar user hi nahi mila
+const loginUser = async ({ email, mobile_number, password, ipAddress, userAgent }) => {
+    
+    // 1. Determine Identifier (Log mein kya dikhana hai?)
+    const identifier = email || mobile_number; 
+
+    // 2. User Search Logic (Dynamic)
+    let user;
+    
+    if (email) {
+        user = await prisma.user.findUnique({ where: { email } });
+    } else if (mobile_number) {
+        user = await prisma.user.findUnique({ where: { mobile_number } });
+    }
+
+    console.log(user);
+    // 3. Agar User NAHI mila
     if (!user) {
         await logAuthEvent({
-            identifier: email,
+            identifier: identifier, // Jo user ne dala wo log karo
             attemptType: 'login',
             status: 'failed',
             failureReason: 'User not found',
             ipAddress, userAgent
         });
-        throw new Error('Invalid email or password');
+        throw new Error('Invalid credentials'); // Security: "User not found" mat batao
     }
 
-    // 2. CHECK LOCKOUT STATUS (FR-03.29)
+    // 4. CHECK LOCKOUT STATUS (Same as before)
     if (user.locked_until && new Date() < new Date(user.locked_until)) {
         const timeLeft = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
         
         await logAuthEvent({
-            identifier: email,
+            identifier: identifier,
             attemptType: 'login',
             status: 'blocked',
             failureReason: 'Account Locked',
@@ -98,60 +110,52 @@ const loginUser = async ({ email, password, ipAddress, userAgent }) => {
         throw new Error(`Account locked. Try again in ${timeLeft} minutes.`);
     }
 
-    // 3. Password Check
+    // 5. Password Check (Same as before)
     const isMatch = await bcrypt.compare(password, user.password_hash);
 
+    console.log("isMatch", isMatch);
     if (!isMatch) {
-        // Ghalat Password Logic
         const newFailedAttempts = user.failed_login_attempts + 1;
         let updateData = { failed_login_attempts: newFailedAttempts };
 
-        // Agar 5 attempts ho gaye -> Lock kardo 30 mins ke liye
         if (newFailedAttempts >= 5) {
             const lockTime = new Date();
             lockTime.setMinutes(lockTime.getMinutes() + 30);
             updateData.locked_until = lockTime;
         }
 
-        // DB Update Karo
         await prisma.user.update({
             where: { user_id: user.user_id },
             data: updateData
         });
 
-        // Log Failure
         await logAuthEvent({
-            identifier: email,
+            identifier: identifier,
             attemptType: 'login',
             status: 'failed',
             failureReason: 'Invalid Password',
             ipAddress, userAgent
         });
 
-        throw new Error(`Invalid email or password. Attempts left: ${5 - newFailedAttempts}`);
+        throw new Error(`Invalid credentials. Attempts left: ${5 - newFailedAttempts}`);
     }
 
-    // 4. LOGIN SUCCESS (Agar password sahi hai)
-    
-    // Reset Counters (Kyunki login sahi ho gaya)
+    // 6. LOGIN SUCCESS (Same as before)
     await prisma.user.update({
         where: { user_id: user.user_id },
-        data: { 
-            failed_login_attempts: 0, 
-            locked_until: null,
-            //last_active: new Date() // Optional: Track last login
-        }
+        data: { failed_login_attempts: 0, locked_until: null }
     });
 
-    // Log Success
     await logAuthEvent({
-        identifier: email,
+        identifier: identifier,
         attemptType: 'login',
         status: 'success',
         ipAddress, userAgent
     });
 
-    // --- SESSION CREATION (Phase 1 wala code) ---
+    // ... (Session Creation & Return Logic bilkul same rahega) ...
+    // ... Neeche ka code copy paste same rakhna ...
+    
     const accessToken = generateAccessToken(user.user_id);
     const refreshToken = generateRefreshToken(user.user_id);
     const refreshTokenHash = hashToken(refreshToken);
@@ -172,6 +176,113 @@ const loginUser = async ({ email, password, ipAddress, userAgent }) => {
     const { password_hash, ...userData } = user;
     return { user: userData, accessToken, refreshToken };
 };
+
+
+// const loginUser = async ({ email, password, ipAddress, userAgent }) => {
+//     // 1. User Find Karo
+//     const user = await prisma.user.findUnique({ where: { email } });
+
+//     // Agar user hi nahi mila
+//     if (!user) {
+//         await logAuthEvent({
+//             identifier: email,
+//             attemptType: 'login',
+//             status: 'failed',
+//             failureReason: 'User not found',
+//             ipAddress, userAgent
+//         });
+//         throw new Error('Invalid email or password');
+//     }
+
+//     // 2. CHECK LOCKOUT STATUS (FR-03.29)
+//     if (user.locked_until && new Date() < new Date(user.locked_until)) {
+//         const timeLeft = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
+        
+//         await logAuthEvent({
+//             identifier: email,
+//             attemptType: 'login',
+//             status: 'blocked',
+//             failureReason: 'Account Locked',
+//             ipAddress, userAgent
+//         });
+
+//         throw new Error(`Account locked. Try again in ${timeLeft} minutes.`);
+//     }
+
+//     // 3. Password Check
+//     const isMatch = await bcrypt.compare(password, user.password_hash);
+
+//     if (!isMatch) {
+//         // Ghalat Password Logic
+//         const newFailedAttempts = user.failed_login_attempts + 1;
+//         let updateData = { failed_login_attempts: newFailedAttempts };
+
+//         // Agar 5 attempts ho gaye -> Lock kardo 30 mins ke liye
+//         if (newFailedAttempts >= 5) {
+//             const lockTime = new Date();
+//             lockTime.setMinutes(lockTime.getMinutes() + 30);
+//             updateData.locked_until = lockTime;
+//         }
+
+//         // DB Update Karo
+//         await prisma.user.update({
+//             where: { user_id: user.user_id },
+//             data: updateData
+//         });
+
+//         // Log Failure
+//         await logAuthEvent({
+//             identifier: email,
+//             attemptType: 'login',
+//             status: 'failed',
+//             failureReason: 'Invalid Password',
+//             ipAddress, userAgent
+//         });
+
+//         throw new Error(`Invalid email or password. Attempts left: ${5 - newFailedAttempts}`);
+//     }
+
+//     // 4. LOGIN SUCCESS (Agar password sahi hai)
+    
+//     // Reset Counters (Kyunki login sahi ho gaya)
+//     await prisma.user.update({
+//         where: { user_id: user.user_id },
+//         data: { 
+//             failed_login_attempts: 0, 
+//             locked_until: null,
+//             //last_active: new Date() // Optional: Track last login
+//         }
+//     });
+
+//     // Log Success
+//     await logAuthEvent({
+//         identifier: email,
+//         attemptType: 'login',
+//         status: 'success',
+//         ipAddress, userAgent
+//     });
+
+//     // --- SESSION CREATION (Phase 1 wala code) ---
+//     const accessToken = generateAccessToken(user.user_id);
+//     const refreshToken = generateRefreshToken(user.user_id);
+//     const refreshTokenHash = hashToken(refreshToken);
+    
+//     const expiresAt = new Date();
+//     expiresAt.setDate(expiresAt.getDate() + 7);
+
+//     await prisma.userSession.create({
+//         data: {
+//             user_id: user.user_id,
+//             refresh_token_hash: refreshTokenHash,
+//             device_info: userAgent || "Unknown Device",
+//             ip_address: ipAddress || "0.0.0.0",
+//             expires_at: expiresAt
+//         }
+//     });
+
+//     const { password_hash, ...userData } = user;
+//     return { user: userData, accessToken, refreshToken };
+// };
 
 
 // const loginUser = async ({ email, password, ipAddress, userAgent }) => {

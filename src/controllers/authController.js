@@ -100,36 +100,71 @@ const register = async (req, res) => {
     }
 };
 
+
 const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        // 1. Input Update: Ab hum mobile_number bhi expect kar rahe hain
+        const { email, mobile_number, password } = req.body;
         
-        // IP aur Device Info nikalna (Audit/Session ke liye zaroori hai)
         const ipAddress = req.ip || req.connection.remoteAddress;
         const userAgent = req.headers['user-agent'];
 
-        if (!email || !password) {
-            return res.status(400).json({ success: false, message: "Email/Password required" });
+        // 2. Validation Logic Update
+        // Password zaroori hai + (Email YA Mobile mein se koi ek zaroori hai)
+        if (!password || (!email && !mobile_number)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please provide Email or Mobile Number along with Password" 
+            });
         }
 
+        // 3. Service Call (Dono fields bhej do, service khud dekhegi kaunsa use karna hai)
         const { user, accessToken, refreshToken } = await authService.loginUser({ 
-            email, password, ipAddress, userAgent 
+            email, mobile_number, password, ipAddress, userAgent 
         });
-
-        // 🍪 Optional: Refresh Token ko Cookie mein bhi bhej sakte hain (Secure)
-        // res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true });
 
         res.status(200).json({
             success: true,
             message: "Login successful",
             accessToken,
-            refreshToken, // Frontend isse LocalStorage/SecureStore mein rakhega
+            refreshToken,
             user
         });
     } catch (error) {
         res.status(401).json({ success: false, message: error.message });
     }
 };
+
+// const login = async (req, res) => {
+//     try {
+//         const { email, password } = req.body;
+        
+//         // IP aur Device Info nikalna (Audit/Session ke liye zaroori hai)
+//         const ipAddress = req.ip || req.connection.remoteAddress;
+//         const userAgent = req.headers['user-agent'];
+
+//         if (!email || !password) {
+//             return res.status(400).json({ success: false, message: "Email/Password required" });
+//         }
+
+//         const { user, accessToken, refreshToken } = await authService.loginUser({ 
+//             email, password, ipAddress, userAgent 
+//         });
+
+//         // 🍪 Optional: Refresh Token ko Cookie mein bhi bhej sakte hain (Secure)
+//         // res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true });
+
+//         res.status(200).json({
+//             success: true,
+//             message: "Login successful",
+//             accessToken,
+//             refreshToken, // Frontend isse LocalStorage/SecureStore mein rakhega
+//             user
+//         });
+//     } catch (error) {
+//         res.status(401).json({ success: false, message: error.message });
+//     }
+// };
 
 const refreshToken = async (req, res) => {
     try {
