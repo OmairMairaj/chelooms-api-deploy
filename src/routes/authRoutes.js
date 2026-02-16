@@ -15,6 +15,11 @@ router.post('/check-user', authController.checkUser);
 router.post('/refresh', authController.refreshToken); // Naya token lene ke liye
 router.post('/logout', authController.logout); // Logout karna
 
+// Forgot Password
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/verify-otp', authController.verifyOTP);
+router.post('/reset-password', authController.resetPassword);
+
 router.get('/me', protect, authController.getMe);
 
 module.exports = router;

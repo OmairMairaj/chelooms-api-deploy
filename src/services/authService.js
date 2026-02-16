@@ -1,8 +1,12 @@
 const { prisma } = require('../config/db');
 const bcrypt = require('bcryptjs');
-const {generateAccessToken, generateRefreshToken, hashToken} = require('../utils/tokenGenerator');
+const {generateAccessToken, generateRefreshToken, hashToken, generateResetToken} = require('../utils/tokenGenerator');
 const { logAuthEvent } = require('./auditService');
 const { verifyGoogleToken, verifyFacebookToken } = require('../utils/socialAuth');
+const emailService = require('./emailService');
+const jwt = require('jsonwebtoken');
+
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString(); // 6 Digit Code
 
 const registerUser = async (userData) => {
     const { first_name, last_name, email, password, mobile_number } = userData;
@@ -41,6 +45,12 @@ const registerUser = async (userData) => {
             is_email_verified: false
         }
     });
+
+    //Email Send
+    if (newUser.email) {
+        // Await mat lagana taaki response fast jaye (Fire and Forget)
+        emailService.sendWelcomeEmail(newUser).catch(err => console.error(err));
+    }
 
     const { password_hash, ...userWithoutPassword } = newUser;
     return userWithoutPassword;
@@ -439,6 +449,10 @@ const loginWithSocial = async ({ provider, token, ipAddress, userAgent }) => {
 
                 return newUser;
             });
+
+            if (user.email) {
+                emailService.sendWelcomeEmail(user).catch(err => console.error(err));
+            }
         }
     }
 
@@ -477,11 +491,130 @@ const loginWithSocial = async ({ provider, token, ipAddress, userAgent }) => {
 };
 
 
+
+
+//resetPassword
+
+const forgotPassword = async (email) => {
+    // A. User Check
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+        throw new Error("User not found with this email");
+    }
+    console.log("user", user);
+    // B. Generate 6-Digit OTP
+    const otp = generateOTP();
+    
+    // C. Set Expiry (15 Minutes from now)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    // D. Save to Database (verification_codes table)
+    // Hum 'type' field use karenge taaki ye login OTP se mix na ho
+    await prisma.verificationCode.create({
+        data: {
+            user_id: user.user_id,
+            code: otp,
+            type: 'PASSWORD_RESET', // Make sure aapke DB mein ye support ho (String/Enum)
+            expires_at: expiresAt,
+            identifier: email
+        }
+    });
+
+    // E. Send Email (Centralized Service call)
+    // Await nahi lagaya taaki response fast ho (optional)
+    emailService.sendPasswordResetOTP(user, otp).catch(err => console.error(err));
+
+    return { message: "Password reset code sent to your email" };
+};
+
+const verifyResetOTP = async (email, code) => {
+    // 1. User Dhundo
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error("User not found");
+
+    // 2. Database mein Code Check karo
+    const validCode = await prisma.verificationCode.findFirst({
+        where: {
+            user_id: user.user_id, // Usi user ka code ho
+            code: code,            // Code match kare
+            type: 'PASSWORD_RESET', // Type sahi ho
+            is_used: false,        // Pehle use na hua ho
+            expires_at: { gt: new Date() } // Expire na hua ho (Current time se bada ho)
+        }
+    });
+
+    // 3. Agar Code Ghalat hai ya Expire hai
+    if (!validCode) {
+        throw new Error("Invalid or expired verification code");
+    }
+
+    // 4. Code ko 'Used' mark kardo (Jala do taaki dubara use na ho)
+    await prisma.verificationCode.update({
+        where: { code_id: validCode.code_id },
+        data: { is_used: true }
+    });
+
+    // 5. 🟢 MAIN STEP: Special Reset Token Generate karo
+    const resetToken = generateResetToken(user.user_id);
+
+    // 6. Token return karo (Frontend isay save karega agle step ke liye)
+    return { 
+        message: "OTP Verified", 
+        resetToken: resetToken 
+    };
+};
+
+// ============================================================
+// 3. RESET PASSWORD (User ne Token + New Password bheja)
+// ============================================================
+const resetPassword = async (token, newPassword) => {
+    let decoded;
+    
+    // 1. Token Verify karo (Kya ye hamara hi diya hua token hai?)
+    try {
+        console.log("Received Token:", token);
+        decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log("decoded", decoded);
+    } catch (error) {
+        console.log("JWT Verification Failed:", error);
+        throw new Error("Invalid or expired reset token");
+    }
+
+    // 2. 🔒 Security Check: Kya ye waqai 'Reset Token' hai?
+    // (Taaki koi Login Token use karke password change na kar sake)
+    if (decoded.scope !== 'password_reset') {
+        throw new Error("Invalid token type");
+    }
+
+    // 3. Password Hash karo
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // 4. Database Update (Password change karo)
+    await prisma.user.update({
+        where: { user_id: decoded.id }, // Token mein jo ID thi
+        data: { 
+            password_hash: hashedPassword,
+            locked_until: null,      // Account unlock kardo
+            failed_login_attempts: 0 // Attempts reset kardo
+        }
+    });
+
+    // 5. Success Message
+    return { message: "Password reset successfully. Please login." };
+};
+
+
+
 module.exports = {
     registerUser,
     loginUser,
     getUserByEmailOrPhone,
     refreshAccessToken,
     logoutUser,
-    loginWithSocial
+    loginWithSocial,
+    verifyResetOTP,
+    resetPassword,
+    forgotPassword
 };

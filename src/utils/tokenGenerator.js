@@ -19,4 +19,15 @@ const hashToken = (token) => {
     return crypto.createHash('sha256').update(token).digest('hex');
 };
 
-module.exports = {generateAccessToken, generateRefreshToken, hashToken};
+const generateResetToken = (userId) => {
+    return jwt.sign(
+        { 
+            id: userId, 
+            scope: 'password_reset' // 🔒 Security Tag: Taaki ye token Login ke liye use na ho sake
+        }, 
+        process.env.JWT_SECRET, 
+        { expiresIn: '10m' } // ⏳ Validity: Sirf 10 Minute
+    );
+};
+
+module.exports = {generateAccessToken, generateRefreshToken, hashToken, generateResetToken};

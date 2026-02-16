@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 
+
 // const register = async (req, res) => {
 //     try {
 //         const { full_name, email, password, mobile_number } = req.body;
@@ -258,6 +259,69 @@ const socialLogin = async (req, res) => {
     }
 };
 
+
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ success: false, message: "Email is required" });
+
+        const result = await authService.forgotPassword(email);
+        res.status(200).json({ success: true, ...result });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+
+const verifyOTP = async (req, res) => {
+    try {
+        const { email, code } = req.body;
+        
+        // Validation
+        if (!email || !code) {
+            return res.status(400).json({ success: false, message: "Email and Code are required" });
+        }
+
+        // Service Call
+        const result = await authService.verifyResetOTP(email, code);
+        
+        // Success Response (Token bhej rahe hain)
+        res.status(200).json({
+            success: true,
+            message: result.message,
+            resetToken: result.resetToken // 👈 Ye Frontend ko chahiye
+        });
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// API 3: Reset Password
+const resetPassword = async (req, res) => {
+    try {
+        // Note: Token body mein bhi aa sakta hai ya Header mein
+        // Hum simplicity ke liye Body mein le rahe hain
+        const { resetToken, newPassword } = req.body;
+
+        // Validation
+        if (!resetToken || !newPassword) {
+            return res.status(400).json({ success: false, message: "Token and New Password required" });
+        }
+
+        // Service Call
+        const result = await authService.resetPassword(resetToken, newPassword);
+
+        res.status(200).json({
+            success: true,
+            message: result.message
+        });
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     register,
     login,
@@ -265,5 +329,8 @@ module.exports = {
     logout,
     getMe,
     checkUser,
-    socialLogin
+    socialLogin,
+    forgotPassword,
+    verifyOTP,
+    resetPassword
 };

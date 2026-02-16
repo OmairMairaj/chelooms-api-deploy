@@ -72,6 +72,7 @@ model User {
   // Relations
   social_identities SocialIdentity[]
   sessions          UserSession[]
+  verification_codes VerificationCode[]
 
   @@map("users") // Database mein table ka naam 'users' hoga
 }
@@ -92,12 +93,15 @@ model SocialIdentity {
 model VerificationCode {
   code_id    String   @id @default(uuid()) @db.Uuid
   identifier String   @db.VarChar(255) // Email or Mobile
-  code_hash  String   @db.VarChar(255)
+  code       String   @db.VarChar(10)
   type       String   @db.VarChar(20)  // 'email_verify', 'mobile_otp'
   expires_at DateTime @db.Timestamptz
   is_used    Boolean  @default(false)
   created_at DateTime @default(now()) @db.Timestamptz
 
+
+   user_id    String   @db.Uuid
+   user       User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   @@map("verification_codes")
 }
 
