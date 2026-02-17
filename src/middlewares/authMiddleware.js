@@ -1,21 +1,64 @@
 const jwt = require('jsonwebtoken');
 const { prisma } = require('../config/db');
 
+// const protect = async (req, res, next) => {
+//     let token;
+
+//     // 1. Check Header: Kya "Bearer" token maujood hai?
+//     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+//         try {
+//             // Token nikalo (Bearer word hata kar)
+//             token = req.headers.authorization.split(' ')[1];
+
+//             // 2. Token Verify Karo
+//             const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+//             // 3. User dhoondo Database mein (Password chupa kar)
+//             // Hum ye bhi check karenge ke user "Deleted" to nahi hai
+//             req.user = await prisma.user.findFirst({
+//                 where: { 
+//                     user_id: decoded.id,
+//                     deleted_at: null // Sirf Active users
+//                 },
+//                 select: {
+//                     user_id: true,
+//                     first_name: true,
+//                     last_name: true,
+//                     email: true,
+//                     role: true
+//                 }
+//             });
+
+//             if (!req.user) {
+//                 return res.status(401).json({ success: false, message: "User not found or deactivated" });
+//             }
+
+//             next(); // Sab theek hai, Controller ke paas jao
+
+//         } catch (error) {
+//             console.error(error);
+//             res.status(401).json({ success: false, message: "Not authorized, token failed" });
+//         }
+//     }
+
+//     if (!token) {
+//         res.status(401).json({ success: false, message: "Not authorized, no token" });
+//     }
+// };
+
 const protect = async (req, res, next) => {
     let token;
 
-    // 1. Check Header: Kya "Bearer" token maujood hai?
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         try {
-            // Token nikalo (Bearer word hata kar)
+            // Token nikalo
             token = req.headers.authorization.split(' ')[1];
 
-            // 2. Token Verify Karo
+            // Token Verify Karo
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-            // 3. User dhoondo Database mein (Password chupa kar)
-            // Hum ye bhi check karenge ke user "Deleted" to nahi hai
-            req.user = await prisma.user.findFirst({
+            // User dhoondo (Deleted users ko ignore karo)
+            const user = await prisma.user.findFirst({
                 where: { 
                     user_id: decoded.id,
                     deleted_at: null // Sirf Active users
@@ -25,25 +68,51 @@ const protect = async (req, res, next) => {
                     first_name: true,
                     last_name: true,
                     email: true,
-                    role: true
+                    role: true // 👈 Ye zaroori hai agle middleware ke liye
                 }
             });
 
-            if (!req.user) {
+            if (!user) {
                 return res.status(401).json({ success: false, message: "User not found or deactivated" });
             }
 
-            next(); // Sab theek hai, Controller ke paas jao
+            // User ko request object mein daal do taaki agle function ko mile
+            req.user = user;
+            
+            return next(); // Return lagana behtar hai taaki code yahi ruk jaye
 
         } catch (error) {
-            console.error(error);
-            res.status(401).json({ success: false, message: "Not authorized, token failed" });
+            console.error("Auth Error:", error.message);
+            return res.status(401).json({ success: false, message: "Not authorized, token failed" });
         }
     }
 
     if (!token) {
-        res.status(401).json({ success: false, message: "Not authorized, no token" });
+        return res.status(401).json({ success: false, message: "Not authorized, no token" });
     }
 };
 
-module.exports = { protect };
+// ==========================================
+// 2. AUTHORIZE (Authorization - Role Check)
+// ==========================================
+// Isay aise call karenge: authorize('Administrator', 'Inventory_Manager')
+const authorize = (...allowedRoles) => {
+    return (req, res, next) => {
+        // Pehle check karo ke 'protect' middleware chala tha ya nahi (req.user hona chahiye)
+        if (!req.user) {
+            return res.status(401).json({ success: false, message: "User verification failed" });
+        }
+
+        // Check karo ke User ka Role allowed list mein hai ya nahi
+        if (!allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ 
+                success: false, 
+                message: `Access Denied: ${req.user.role}s are not allowed to access this resource.` 
+            });
+        }
+
+        next(); // Sab sahi hai, aage badho
+    };
+};
+
+module.exports = { protect , authorize};

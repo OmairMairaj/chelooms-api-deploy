@@ -20,6 +20,13 @@ router.post('/forgot-password', authController.forgotPassword);
 router.post('/verify-otp', authController.verifyOTP);
 router.post('/reset-password', authController.resetPassword);
 
+// Send Mobile Verification Code
+router.post('/send-mobile-otp', authController.sendMobileVerificationCode);
+router.post('/verify-mobile-login', authController.verifyMobileLogin);
+
+router.post('/send-otp', authController.sendMobileOtp);
+router.post('/verify-code', authController.verifyCodeOnly);
+
 router.get('/me', protect, authController.getMe);
 
 module.exports = router;

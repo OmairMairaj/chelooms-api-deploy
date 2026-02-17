@@ -322,6 +322,103 @@ const resetPassword = async (req, res) => {
     }
 };
 
+
+const sendMobileVerificationCode = async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ success: false, message: "User ID is required" });
+        }
+
+        // Service Call
+        const result = await authService.sendMobileOTP(userId);
+
+        res.status(200).json({
+            success: true,
+            ...result // Isme message aur dev_code dono honge
+        });
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+const verifyMobileLogin = async (req, res) => {
+    try {
+        const { mobileNumber, code } = req.body;
+
+        // Validation
+        if (!mobileNumber || !code) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Mobile number and Code are required." 
+            });
+        }
+
+        // Info for Session (Optional but good for security)
+        const deviceInfo = req.headers['user-agent'];
+        const ipAddress = req.ip || req.connection.remoteAddress;
+
+        // Service Call
+        const result = await authService.verifyMobileAndLogin(
+            mobileNumber, 
+            code, 
+            deviceInfo, 
+            ipAddress
+        );
+
+        // Success Response (Same format as standard login)
+        res.status(200).json(result);
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+const sendMobileOtp = async (req, res) => {
+    try {
+        const { mobileNumber } = req.body;
+
+        // Validation
+        if (!mobileNumber) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Mobile number is required." 
+            });
+        }
+
+        // Service Call
+        const result = await authService.generateOtpForMobile(mobileNumber);
+
+        res.status(200).json(result);
+
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+const verifyCodeOnly = async (req, res) => {
+    try {
+        const { mobileNumber, code } = req.body;
+
+        if (!mobileNumber || !code) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Mobile number and Code are required." 
+            });
+        }
+
+        // Service Call
+        const result = await authService.verifyMobileCodeSimple(mobileNumber, code);
+
+        res.status(200).json(result);
+
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     register,
     login,
@@ -332,5 +429,9 @@ module.exports = {
     socialLogin,
     forgotPassword,
     verifyOTP,
-    resetPassword
+    resetPassword,
+    sendMobileVerificationCode,
+    verifyMobileLogin,
+    sendMobileOtp,
+    verifyCodeOnly
 };

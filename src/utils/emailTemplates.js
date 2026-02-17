@@ -129,4 +129,32 @@ const forgotPasswordTemplate = (firstName, otp) => {
     `;
 };
 
-module.exports = { verifyEmailTemplate, resetPasswordTemplate, otpTemplate, welcomeTemplate, forgotPasswordTemplate };
+const accountCreatedTemplateByAdmin = (firstName, email, defaultPassword) => {
+    return `
+    <div style="${style}">
+        <div style="${headerStyle}">
+            <h2 style="color: #333;">Welcome to Chelooms Team! 👔</h2>
+        </div>
+        
+        <div style="padding: 20px 0;">
+            <p>Hi ${firstName},</p>
+            <p>An administrator has created an account for you at Chelooms.</p>
+            
+            <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0; font-weight: bold; color: #333;">Your Login Credentials:</p>
+                <p style="margin: 5px 0;">📧 Email: <strong>${email}</strong></p>
+                <p style="margin: 5px 0;">🔑 Password: <strong>${defaultPassword}</strong></p>
+            </div>
+
+            <p style="color: #dc3545; font-weight: bold;">⚠️ Action Required:</p>
+            <p>For security reasons, please login immediately and change your password.</p>
+        </div>
+        
+        <div style="${footerStyle}">
+            <p>&copy; Chelooms Admin System</p>
+        </div>
+    </div>
+    `;
+};
+
+module.exports = { verifyEmailTemplate, resetPasswordTemplate, otpTemplate, welcomeTemplate, forgotPasswordTemplate, accountCreatedTemplateByAdmin };

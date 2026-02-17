@@ -5,6 +5,7 @@ const { logAuthEvent } = require('./auditService');
 const { verifyGoogleToken, verifyFacebookToken } = require('../utils/socialAuth');
 const emailService = require('./emailService');
 const jwt = require('jsonwebtoken');
+const smsService = require('./smsService');
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString(); // 6 Digit Code
 
@@ -606,6 +607,198 @@ const resetPassword = async (token, newPassword) => {
 };
 
 
+const sendMobileOTP = async (userId) => {
+    // 1. User Dhundo
+    const user = await prisma.user.findUnique({
+        where: { user_id: userId }
+    });
+
+    if (!user) throw new Error("User not found");
+    if (!user.mobile_number) throw new Error("User does not have a mobile number linked");
+
+    // 2. Generate 6-Digit Code
+    const otp = generateOTP();
+
+    // 3. Expiry Set Karo (5 Minutes)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+
+    // 4. Save to Database (verification_codes table)
+    await prisma.verificationCode.create({
+        data: {
+            user_id: user.user_id,
+            identifier: user.mobile_number, // Mobile number identifier hai
+            code: otp,                      // OTP code
+            type: 'MOBILE_OTP',             // Type alag rakhi hai
+            expires_at: expiresAt
+        }
+    });
+
+    // 5. SMS Service Call karo (Centralized)
+    const message = `Your verification code for Chelooms is ${otp}`;
+    await smsService.sendSMS(user.mobile_number, message);
+
+    // 6. Return Code (Sirf Development/Testing ke liye return kar rahe hain)
+    return { 
+        message: "OTP sent to your mobile number", 
+        dev_code: otp, // 👈 Frontend ko dikhane ke liye (jab tak SMS nahi chalta)
+        mobile: user.mobile_number 
+    };
+};
+
+
+const verifyMobileAndLogin = async (mobileNumber, code, deviceInfo, ipAddress) => {
+    
+    // 1. Database mein Code Dhundo (Identifier = Mobile Number)
+    const validCode = await prisma.verificationCode.findFirst({
+        where: {
+            identifier: mobileNumber, // Mobile number se match karo
+            code: code,               // Code match karo
+            type: 'MOBILE_OTP',       // Type confirm karo
+            is_used: false,           // Used nahi hona chahiye
+            expires_at: { gt: new Date() } // Expire nahi hona chahiye
+        },
+        include: {
+            user: true // User ka data bhi saath le aao
+        }
+    });
+
+    if (!validCode) {
+        throw new Error("Invalid or expired verification code.");
+    }
+
+    const user = validCode.user;
+
+    // 2. Generate Tokens (Using utils/tokenGenerator.js) 🔑
+    const accessToken = generateAccessToken(user.user_id);
+    const refreshToken = generateRefreshToken(user.user_id);
+    
+    // 3. Hash Refresh Token (For Database Security) 🔒
+    const refreshTokenHash = hashToken(refreshToken);
+
+    // 4. Calculate Session Expiry (7 Days from now)
+    const sessionExpiry = new Date();
+    sessionExpiry.setDate(sessionExpiry.getDate() + 7);
+
+    // 5. Transaction: Code Used + User Update + Session Create
+    await prisma.$transaction([
+        // A. Mark Code as Used
+        prisma.verificationCode.update({
+            where: { code_id: validCode.code_id }, // Ensure your schema uses code_id
+            data: { is_used: true }
+        }),
+
+        // B. Update User (Verify Mobile & Reset Counters)
+        prisma.user.update({
+            where: { user_id: user.user_id },
+            data: { 
+                is_mobile_verified: true,
+                failed_login_attempts: 0,
+                locked_until: null
+            }
+        }),
+
+        // C. Create Session
+        prisma.userSession.create({
+            data: {
+                user_id: user.user_id,
+                refresh_token_hash: refreshTokenHash, // Hash save kar rahe hain
+                device_info: deviceInfo || "Unknown Device",
+                ip_address: ipAddress || "0.0.0.0",
+                expires_at: sessionExpiry
+            }
+        })
+    ]);
+
+    // 6. Return Response
+    return {
+        success: true,
+        message: "Login successful via Mobile OTP",
+        accessToken,
+        refreshToken, // User ko original token denge (Hash nahi)
+        user: {
+            user_id: user.user_id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
+            mobile_number: user.mobile_number,
+            role: user.role
+        }
+    };
+};
+
+
+const generateOtpForMobile = async (mobileNumber) => {
+    
+    // 1. Purane Codes Invalidate karo (Optional but Recommended)
+    // Us number ke purane unused codes delete kar do taaki confusion na ho
+    await prisma.verificationCode.deleteMany({
+        where: {
+            identifier: mobileNumber,
+            type: 'MOBILE_VERIFICATION' 
+        }
+    });
+
+    // 2. Generate 6-Digit Code
+    const otp = generateOTP();
+
+    // 3. Set Expiry (5 Minutes)
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 5);
+
+    // 4. Save to Database (Bina User ID ke)
+    await prisma.verificationCode.create({
+        data: {
+            identifier: mobileNumber,     // Mobile Number
+            code: otp,                    // Generated Code
+            type: 'MOBILE_VERIFICATION',  // Type
+            expires_at: expiresAt,
+            user_id: null                 // 👈 Yahan NULL jayega
+        }
+    });
+
+    // 5. Send SMS (Mock)
+    const message = `Your verification code is ${otp}`;
+    await smsService.sendSMS(mobileNumber, message);
+
+    // 6. Return Data
+    return {
+        success: true,
+        message: "OTP generated successfully.",
+        mobile: mobileNumber,
+        dev_code: otp // 👈 Frontend testing ke liye
+    };
+};
+
+
+const verifyMobileCodeSimple = async (mobileNumber, code) => {
+    
+    // 1. Find Valid Code
+    const validCode = await prisma.verificationCode.findFirst({
+        where: {
+            identifier: mobileNumber, // Mobile Match
+            code: code,               // Code Match
+            is_used: false,           // Not Used
+            expires_at: { gt: new Date() } // Not Expired
+        }
+    });
+
+    if (!validCode) {
+        throw new Error("Invalid or expired verification code.");
+    }
+
+    // 2. Mark as Used (Important: Taaki code expire ho jaye)
+    await prisma.verificationCode.update({
+        where: { code_id: validCode.code_id },
+        data: { is_used: true }
+    });
+
+    return {
+        success: true,
+        message: "Code verified successfully.",
+        mobile: mobileNumber
+    };
+};
 
 module.exports = {
     registerUser,
@@ -616,5 +809,9 @@ module.exports = {
     loginWithSocial,
     verifyResetOTP,
     resetPassword,
-    forgotPassword
+    forgotPassword,
+    sendMobileOTP,
+    verifyMobileAndLogin,
+    generateOtpForMobile,
+    verifyMobileCodeSimple
 };

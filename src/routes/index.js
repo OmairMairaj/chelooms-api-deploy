@@ -2,10 +2,12 @@ const { Router } = require('express');
 const router = Router();
 const authRoutes = require('./authRoutes');
 const emailService = require('../services/emailService');
+const userRoutes = require('./userRoutes');
 // Example: const authRoutes = require('./auth.routes');
 // router.use('/auth', authRoutes);
 
 router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
 
 router.get('/health', (req, res) => {
   res.send('Welcome to Chelooms API v1 (JavaScript Mode)');

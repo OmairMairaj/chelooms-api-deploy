@@ -1,20 +1,31 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const routes = require('./routes/index');
+const routes = require('./routes/index'); // Make sure ye path sahi ho
 
 const app = express();
 
 // --- Middlewares ---
+
+// 1. Security Headers
 app.use(helmet());
-app.use(cors());
+
+// 2. CORS Configuration (SIRF EK BAAR HONA CHAHIYE)
+app.use(cors({
+  origin: 'http://localhost:3000', // Frontend URL (No slash at end)
+  credentials: true,               // Cookies/Token allow
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// ❌ Yahan pehle 'app.use(cors());' tha, usay MAINE HATA DIYA HAI.
+// Wo conflict kar raha tha.
+
+// 3. Body Parser
 app.use(express.json());
 
 // --- Routes ---
 app.use('/api/v1', routes);
-
-// --- Health Check ---
-
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {

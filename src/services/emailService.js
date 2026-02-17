@@ -1,5 +1,5 @@
 const transporter = require('../config/emailConfig');
-const { welcomeTemplate, forgotPasswordTemplate } = require('../utils/emailTemplates');
+const { welcomeTemplate, forgotPasswordTemplate, accountCreatedTemplateByAdmin } = require('../utils/emailTemplates');
 
 // Generic Sender Function (Internal Use)
 const sendMail = async (to, subject, htmlContent) => {
@@ -31,8 +31,15 @@ const sendPasswordResetOTP = async (user, otp) => {
 };
 
 
+const sendAccountCredentials = async (email, firstName, password) => {
+    const html = accountCreatedTemplateByAdmin(firstName, email, password);
+    await sendMail(email, "Welcome to Chelooms - Account Details", html);
+};
+
+
 
 module.exports = { 
     sendWelcomeEmail, 
-    sendPasswordResetOTP, 
+    sendPasswordResetOTP,
+    sendAccountCredentials
 };
