@@ -3,11 +3,15 @@ const router = Router();
 const authRoutes = require('./authRoutes');
 const emailService = require('../services/emailService');
 const userRoutes = require('./userRoutes');
+const inventoryRoutes = require('./inventoryRoutes');
+const galleryRoutes = require('./galleryRoutes');
 // Example: const authRoutes = require('./auth.routes');
 // router.use('/auth', authRoutes);
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+router.use('/api/inventory', inventoryRoutes);
+router.use('/gallery', galleryRoutes);
 
 router.get('/health', (req, res) => {
   res.send('Welcome to Chelooms API v1 (JavaScript Mode)');
@@ -29,5 +33,7 @@ router.get('/test-email', async (req, res) => {
       res.status(500).json({ success: false, error: error.message });
   }
 });
+
+
 
 module.exports = router;

@@ -738,7 +738,7 @@ const generateOtpForMobile = async (mobileNumber) => {
             type: 'MOBILE_VERIFICATION' 
         }
     });
-
+     console.log(mobileNumber);
     // 2. Generate 6-Digit Code
     const otp = generateOTP();
 

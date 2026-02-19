@@ -23,6 +23,7 @@ Thumbs.db
 
 # Build / misc
 dist/
+uploads/
 coverage/
 .nyc_output/
 

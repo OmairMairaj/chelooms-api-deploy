@@ -39,6 +39,19 @@ enum AuthStatus {
   blocked
 }
 
+enum InventoryType {
+  FABRIC
+  EMBELLISHMENT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STOCK_ADJUSTMENT
+  STOCK_OVERRIDE
+}
+
 // ==========================================
 // 2. AUTH MODELS (Module 03)
 // ==========================================
@@ -132,4 +145,72 @@ model AuthAuditLog {
   created_at     DateTime        @default(now()) @db.Timestamptz
 
   @@map("auth_audit_logs")
+}
+
+
+// 1. Categories (e.g., "Silk", "Buttons", "Lawn") 
+model InventoryCategory {
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
+  type        InventoryType   // Fabric or Embellishment
+  description String?
+  items       InventoryItem[] // Relation: Ek category mein bohot items ho sakte hain
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("inventory_categories") // DB mein table ka naam ye hoga
+}
+
+// 2. Inventory Items (The actual stock) 
+model InventoryItem {
+  id                String            @id @default(uuid()) // UUID use kar rahe hain security ke liye
+  categoryId        Int
+  category          InventoryCategory @relation(fields: [categoryId], references: [id])
+  
+  name              String
+  description       String?
+  sku               String?           @unique // Stock Keeping Unit (Optional but pro)
+  
+  // Metadata fields (JSON best hai flexible data ke liye like Designer, Origin) 
+  metadata          Json?             // { "designer": "XYZ", "width": "60inch", "shininess": "High" }
+  
+  // Visuals
+  colorHex          String?           // e.g., #FF5733 
+  colorName         String?           // e.g., "Royal Blue"
+  images Json? @default("{}")
+
+  // Pricing & Stock
+  price             Decimal           @db.Decimal(10, 2) // Price kabhi float nahi hoti
+  stockQuantity     Decimal           @db.Decimal(10, 2) // Fabric yards (decimal) aur Buttons units (int) dono handle karega 
+  lowStockThreshold Decimal           @default(10)       // Alert level 
+  
+  isActive          Boolean           @default(true)
+  
+  auditLogs         InventoryAuditLog[] // Relation to logs
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@map("inventory_items")
+}
+
+// 3. Audit Logs (Security & Tracking) 
+model InventoryAuditLog {
+  id             String        @id @default(uuid())
+  itemId         String
+  item           InventoryItem @relation(fields: [itemId], references: [id])
+  
+  // Admin jisne change kiya (Make sure User model already exists in your schema)
+  adminId        String        
+  // admin          User          @relation(fields: [adminId], references: [id]) 
+  // NOTE: Upar wali line uncomment karna agar User model define hai
+  
+  action         AuditAction   // CREATE, UPDATE, OVERRIDE
+  quantityChange Decimal?      // Kitna stock add/remove hua
+  reason         String?       // Kyun change kiya? (Justification) [cite: 57]
+  previousValues Json?         // Purana data kya tha (Snapshot)
+  
+  createdAt      DateTime      @default(now())
+
+  @@map("inventory_audit_logs")
 }

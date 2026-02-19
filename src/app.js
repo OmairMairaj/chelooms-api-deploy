@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const routes = require('./routes/index'); // Make sure ye path sahi ho
+const inventoryRoutes = require('./routes/inventoryRoutes');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use(express.json());
 
 // --- Routes ---
 app.use('/api/v1', routes);
+app.use('/api/inventory', inventoryRoutes)
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
