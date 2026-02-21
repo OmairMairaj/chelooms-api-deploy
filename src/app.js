@@ -3,7 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const routes = require('./routes/index'); // Make sure ye path sahi ho
 const inventoryRoutes = require('./routes/inventoryRoutes');
-
+const galleryRoutes = require('./routes/galleryRoutes');
 const app = express();
 
 // --- Middlewares ---
@@ -28,6 +28,7 @@ app.use(express.json());
 // --- Routes ---
 app.use('/api/v1', routes);
 app.use('/api/inventory', inventoryRoutes)
+app.use('/api/gallery', galleryRoutes);
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {

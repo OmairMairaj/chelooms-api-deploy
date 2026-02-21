@@ -93,7 +93,7 @@ const loginUser = async ({ email, mobile_number, password, ipAddress, userAgent 
         user = await prisma.user.findUnique({ where: { mobile_number } });
     }
 
-    console.log(user);
+    console.log("USersss",user);
     // 3. Agar User NAHI mila
     if (!user) {
         await logAuthEvent({

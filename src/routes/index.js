@@ -10,8 +10,7 @@ const galleryRoutes = require('./galleryRoutes');
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
-router.use('/api/inventory', inventoryRoutes);
-router.use('/gallery', galleryRoutes);
+
 
 router.get('/health', (req, res) => {
   res.send('Welcome to Chelooms API v1 (JavaScript Mode)');
