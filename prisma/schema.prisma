@@ -1,15 +1,17 @@
 // prisma/schema.prisma
 
-// 1. Ye block batata hai ke Node.js client banana hai
+// 1. Generator
 generator client {
   provider = "prisma-client-js"
 }
 
-// 2. Ye batata hai ke Database kaunsa hai
+// 2. Datasource
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// --- ENUMS ---
 
 enum UserRole {
   Registered
@@ -52,42 +54,81 @@ enum AuditAction {
   STOCK_OVERRIDE
 }
 
+enum OperationalStatus {
+  checkout_draft      // SHOPPING CART
+  checkout_abandoned
+  pending_payment
+  paid_processing
+  in_production
+  quality_check
+  ready_to_ship
+  shipped
+  delivered
+  cancelled
+  returned
+}
+
+enum PaymentStatus {
+  unpaid
+  paid
+  failed
+  refunded
+  partially_refunded
+}
+
+enum ItemType {
+  fabric
+  embellishment
+  design_bundle
+}
+
+enum PaymentMethod {
+  COD             // Cash on Delivery
+  CREDIT_CARD
+  BANK_TRANSFER
+}
+
 // ==========================================
-// 2. AUTH MODELS (Module 03)
+// 1. AUTH & USER MODELS
 // ==========================================
 
 model User {
-  user_id           String    @id @default(uuid()) @db.Uuid
-  first_name        String    @db.VarChar(50)
-  last_name         String    @db.VarChar(50)
-  email             String?   @unique @db.VarChar(255)
-  mobile_number     String?   @unique @db.VarChar(20)
-  password_hash     String?   @db.VarChar(255)
-  
-  // Verification Status
-  is_email_verified Boolean   @default(false)
-  is_mobile_verified Boolean  @default(false)
-  
-  // Role & Profile
-  role              UserRole  @default(Registered)
-  profile_picture_url String?
-  preferred_language String   @default("English") @db.VarChar(10)
-  
-  // Security
-  failed_login_attempts Int      @default(0)
-  locked_until          DateTime? @db.Timestamptz
-  
-  // Timestamps
-  created_at        DateTime  @default(now()) @db.Timestamptz
-  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamptz
-  deleted_at        DateTime? @db.Timestamptz // Soft Delete
-  
-  // Relations
-  social_identities SocialIdentity[]
-  sessions          UserSession[]
-  verification_codes VerificationCode[]
+  user_id       String  @id @default(uuid()) @db.Uuid
+  first_name    String  @db.VarChar(50)
+  last_name     String  @db.VarChar(50)
+  email         String? @unique @db.VarChar(255)
+  mobile_number String? @unique @db.VarChar(20)
+  password_hash String? @db.VarChar(255)
 
-  @@map("users") // Database mein table ka naam 'users' hoga
+  // Verification Status
+  is_email_verified  Boolean @default(false)
+  is_mobile_verified Boolean @default(false)
+
+  // Role & Profile
+  role               UserRole @default(Registered)
+  profile_picture_url String?
+  preferred_language  String   @default("English") @db.VarChar(10)
+
+  // Security
+  failed_login_attempts Int       @default(0)
+  locked_until          DateTime? @db.Timestamptz
+
+  // Timestamps
+  created_at DateTime  @default(now()) @db.Timestamptz
+  updated_at DateTime  @default(now()) @updatedAt @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz // Soft Delete
+
+  // Relations
+  social_identities  SocialIdentity[]
+  sessions           UserSession[]
+  verification_codes VerificationCode[]
+  
+  // New Relations for Order Module
+  addresses          UserAddress[]
+  orders             Order[]
+  inventory_logs     InventoryAuditLog[] // Relation for Admin actions
+
+  @@map("users")
 }
 
 model SocialIdentity {
@@ -96,8 +137,8 @@ model SocialIdentity {
   provider     AuthProviderType
   provider_uid String           @db.VarChar(255)
   linked_at    DateTime         @default(now()) @db.Timestamptz
-  
-  user         User             @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@unique([provider, provider_uid])
   @@map("social_identities")
@@ -105,16 +146,16 @@ model SocialIdentity {
 
 model VerificationCode {
   code_id    String   @id @default(uuid()) @db.Uuid
-  identifier String   @db.VarChar(255) // Email or Mobile
+  identifier String   @db.VarChar(255)
   code       String   @db.VarChar(10)
-  type       String   @db.VarChar(20)  // 'email_verify', 'mobile_otp'
+  type       String   @db.VarChar(20)
   expires_at DateTime @db.Timestamptz
   is_used    Boolean  @default(false)
   created_at DateTime @default(now()) @db.Timestamptz
 
+  user_id String? @db.Uuid
+  user    User?   @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
-   user_id    String?   @db.Uuid
-   user       User?     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   @@map("verification_codes")
 }
 
@@ -126,91 +167,195 @@ model UserSession {
   ip_address         String?  @db.Inet
   expires_at         DateTime @db.Timestamptz
   last_active        DateTime @default(now()) @db.Timestamptz
-  
-  user               User     @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
 
   @@map("user_sessions")
 }
 
-
 model AuthAuditLog {
-  id             BigInt          @id @default(autoincrement()) // SQL: BIGINT AUTO_INCREMENT
-  identifier     String          @db.VarChar(255)              // Email/Phone
-  attempt_type   AuthAttemptType                               // Enum mapping
-  status         AuthStatus                                    // Enum mapping
-  failure_reason String?         @db.VarChar(255)              // Nullable (Success hone pe null hoga)
-  
-  ip_address     String?         @db.VarChar(45)               // IPv6 support ke liye 45 length
-  user_agent     String?         @db.Text                      // Browser/Device info
+  id             BigInt          @id @default(autoincrement())
+  identifier     String          @db.VarChar(255)
+  attempt_type   AuthAttemptType
+  status         AuthStatus
+  failure_reason String?         @db.VarChar(255)
+  ip_address     String?         @db.VarChar(45)
+  user_agent     String?         @db.Text
   created_at     DateTime        @default(now()) @db.Timestamptz
 
   @@map("auth_audit_logs")
 }
 
+// ==========================================
+// 2. INVENTORY MODELS
+// ==========================================
 
-// 1. Categories (e.g., "Silk", "Buttons", "Lawn") 
 model InventoryCategory {
-  id          Int             @id @default(autoincrement())
-  name        String          @unique
-  type        InventoryType   // Fabric or Embellishment
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  type        InventoryType
   description String?
-  items       InventoryItem[] // Relation: Ek category mein bohot items ho sakte hain
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  items       InventoryItem[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  @@map("inventory_categories") // DB mein table ka naam ye hoga
+  @@map("inventory_categories")
 }
 
-// 2. Inventory Items (The actual stock) 
 model InventoryItem {
-  id                String            @id @default(uuid()) // UUID use kar rahe hain security ke liye
-  categoryId        Int
-  category          InventoryCategory @relation(fields: [categoryId], references: [id])
-  
-  name              String
-  description       String?
-  sku               String?           @unique // Stock Keeping Unit (Optional but pro)
-  
-  // Metadata fields (JSON best hai flexible data ke liye like Designer, Origin) 
-  metadata          Json?             // { "designer": "XYZ", "width": "60inch", "shininess": "High" }
-  
+  id          String            @id @default(uuid())
+  categoryId  Int
+  category    InventoryCategory @relation(fields: [categoryId], references: [id])
+
+  name        String
+  description String?
+  sku         String? @unique
+
+  metadata    Json? // { "designer": "XYZ", "width": "60inch" }
+
   // Visuals
-  colorHex          String?           // e.g., #FF5733 
-  colorName         String?           // e.g., "Royal Blue"
-  images Json? @default("{}")
+  colorHex    String?
+  colorName   String?
+  images      Json?   @default("{}")
 
   // Pricing & Stock
-  price             Decimal           @db.Decimal(10, 2) // Price kabhi float nahi hoti
-  stockQuantity     Decimal           @db.Decimal(10, 2) // Fabric yards (decimal) aur Buttons units (int) dono handle karega 
-  lowStockThreshold Decimal           @default(10)       // Alert level 
-  
-  isActive          Boolean           @default(true)
-  
-  auditLogs         InventoryAuditLog[] // Relation to logs
-  
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  price             Decimal @db.Decimal(10, 2)
+  stockQuantity     Decimal @db.Decimal(10, 2)
+  lowStockThreshold Decimal @default(10)
+
+  isActive Boolean @default(true)
+
+  auditLogs  InventoryAuditLog[]
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("inventory_items")
 }
 
-// 3. Audit Logs (Security & Tracking) 
 model InventoryAuditLog {
   id             String        @id @default(uuid())
   itemId         String
   item           InventoryItem @relation(fields: [itemId], references: [id])
-  
-  // Admin jisne change kiya (Make sure User model already exists in your schema)
-  adminId        String        
-  // admin          User          @relation(fields: [adminId], references: [id]) 
-  // NOTE: Upar wali line uncomment karna agar User model define hai
-  
-  action         AuditAction   // CREATE, UPDATE, OVERRIDE
-  quantityChange Decimal?      // Kitna stock add/remove hua
-  reason         String?       // Kyun change kiya? (Justification) [cite: 57]
-  previousValues Json?         // Purana data kya tha (Snapshot)
-  
-  createdAt      DateTime      @default(now())
+
+  // Fixed: Admin relation linked correctly to User table
+  adminId        String        @map("admin_id") @db.Uuid 
+  admin          User          @relation(fields: [adminId], references: [user_id])
+
+  action         AuditAction
+  quantityChange Decimal?
+  reason         String?
+  previousValues Json?
+
+  createdAt DateTime @default(now())
 
   @@map("inventory_audit_logs")
+}
+
+// ==========================================
+// 3. ORDER & CART MODELS
+// ==========================================
+
+model UserAddress {
+  id           String   @id @default(uuid())
+  user_id      String?  @db.Uuid
+  label        String?
+  fullName     String
+  phone        String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  province     String?
+  postalCode   String?
+  country      String   @default("Pakistan")
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  // Relation
+  user User? @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  
+  @@map("user_addresses")
+}
+
+model Order {
+  id                String   @id @default(uuid())
+  readableId        String?  @unique
+  user_id           String?  @db.Uuid // Type match fix
+  guestId           String?
+  // Checkout Snapshots
+  shippingAddressData Json?
+  contactDetails      Json?
+  isContactVerified   Boolean  @default(false)
+
+  // Financials
+  currency       String @default("PKR")
+  subtotal       Float  @default(0.00)
+  taxAmount      Float  @default(0.00)
+  shippingCost   Float  @default(0.00)
+  discountAmount Float  @default(0.00)
+  totalAmount    Float  @default(0.00)
+
+  // Status
+  operationalStatus OperationalStatus @default(checkout_draft)
+  paymentStatus     PaymentStatus     @default(unpaid)
+  paymentMethod     PaymentMethod?
+
+  // Logistics
+  courierName       String?
+  trackingNumber    String?
+  estimatedDelivery DateTime?
+
+  // Timestamps
+  placedAt    DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user           User?           @relation(fields: [user_id], references: [user_id], onDelete: SetNull)
+  items          OrderItem[]
+  timelineEvents OrderTimeline[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String   @id @default(uuid())
+  orderId         String
+
+  itemType        ItemType
+  inventoryItemId String?
+  designId        String?
+
+  // Frozen Details
+  nameAtPurchase String
+  quantity       Float
+  unitPrice      Float
+  totalLinePrice Float
+
+  attributes Json?
+
+  // Relations
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+
+  @@map("order_items")
+}
+
+model OrderTimeline {
+  id          Int      @id @default(autoincrement())
+  orderId     String
+
+  statusFrom  OperationalStatus?
+  statusTo    OperationalStatus?
+  description String
+  actorName   String?
+
+  createdAt   DateTime @default(now())
+
+  // Relation
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_timeline")
 }

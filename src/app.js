@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const routes = require('./routes/index'); // Make sure ye path sahi ho
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const galleryRoutes = require('./routes/galleryRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const checkoutRoutes = require('./routes/checkoutRoutes');
 const app = express();
 
 // --- Middlewares ---
@@ -29,7 +31,8 @@ app.use(express.json());
 app.use('/api/v1', routes);
 app.use('/api/inventory', inventoryRoutes)
 app.use('/api/gallery', galleryRoutes);
-
+app.use('/api/cart', cartRoutes);
+app.use('/api/checkout', checkoutRoutes);
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
   console.error(err.stack);

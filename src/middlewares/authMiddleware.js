@@ -115,4 +115,35 @@ const authorize = (...allowedRoles) => {
     };
 };
 
-module.exports = { protect , authorize};
+
+// Add this new function to your existing authMiddleware.js
+
+const identifyUserOrGuest = async (req, res, next) => {
+    let token;
+  
+    // 1. Check for Token (Registered User)
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      try {
+        token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = await prisma.user.findUnique({ where: { user_id: decoded.user_id } });
+      } catch (error) {
+        console.log("Token invalid, treating as Guest");
+      }
+    }
+  
+    // 2. Check for Guest ID (Frontend se aayega)
+    // Guest ID frontend generate karega (UUID) aur body/headers mein bhejega
+    const guestId = req.headers['x-guest-id'] || req.body.guestId;
+  
+    if (!req.user && !guestId) {
+      return res.status(401).json({ success: false, message: "Identification required (Token or Guest ID)" });
+    }
+  
+    // Request object mein guestId set kardo taake controller use kar sake
+    req.guestId = guestId;
+    next();
+  };
+  
+
+module.exports = { protect , authorize, identifyUserOrGuest};
