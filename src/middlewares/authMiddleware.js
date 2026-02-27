@@ -134,7 +134,7 @@ const identifyUserOrGuest = async (req, res, next) => {
   
     // 2. Check for Guest ID (Frontend se aayega)
     // Guest ID frontend generate karega (UUID) aur body/headers mein bhejega
-    const guestId = req.headers['x-guest-id'] || req.body.guestId;
+    const guestId = req.headers['x-guest-id'] || req.body?.guestId;
   
     if (!req.user && !guestId) {
       return res.status(401).json({ success: false, message: "Identification required (Token or Guest ID)" });

@@ -17,12 +17,10 @@ app.use(helmet());
 app.use(cors({
   origin: 'http://localhost:3000', // Frontend URL (No slash at end)
   credentials: true,               // Cookies/Token allow
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
 }));
 
-// ❌ Yahan pehle 'app.use(cors());' tha, usay MAINE HATA DIYA HAI.
-// Wo conflict kar raha tha.
+
 
 // 3. Body Parser
 app.use(express.json());

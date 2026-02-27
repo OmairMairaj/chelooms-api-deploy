@@ -86,7 +86,7 @@ const checkoutController = {
         return res.status(404).json({ success: false, message: "No active order or contact details found" });
       }
 
-      const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const phone = order.contactDetails.phone;
 
       // OTP Save
