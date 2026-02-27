@@ -6,6 +6,7 @@ const inventoryRoutes = require('./routes/inventoryRoutes');
 const galleryRoutes = require('./routes/galleryRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const checkoutRoutes = require('./routes/checkoutRoutes');
+const sizingRoutes = require('./routes/sizingRoutes');
 const app = express();
 
 // --- Middlewares ---
@@ -31,6 +32,9 @@ app.use('/api/inventory', inventoryRoutes)
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/checkout', checkoutRoutes);
+app.use('/api/sizing', sizingRoutes);
+
+
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
   console.error(err.stack);

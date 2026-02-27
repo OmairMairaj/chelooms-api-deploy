@@ -55,7 +55,7 @@ enum AuditAction {
 }
 
 enum OperationalStatus {
-  checkout_draft      // SHOPPING CART
+  checkout_draft // SHOPPING CART
   checkout_abandoned
   pending_payment
   paid_processing
@@ -83,9 +83,20 @@ enum ItemType {
 }
 
 enum PaymentMethod {
-  COD             // Cash on Delivery
+  COD // Cash on Delivery
   CREDIT_CARD
   BANK_TRANSFER
+}
+
+// Sizing
+enum MeasurementUnit {
+  Inches
+  CM
+}
+
+enum SizingMethod {
+  Standard_Preset
+  Jute_Fit_Custom
 }
 
 // ==========================================
@@ -105,7 +116,7 @@ model User {
   is_mobile_verified Boolean @default(false)
 
   // Role & Profile
-  role               UserRole @default(Registered)
+  role                UserRole @default(Registered)
   profile_picture_url String?
   preferred_language  String   @default("English") @db.VarChar(10)
 
@@ -122,11 +133,12 @@ model User {
   social_identities  SocialIdentity[]
   sessions           UserSession[]
   verification_codes VerificationCode[]
-  
+
   // New Relations for Order Module
-  addresses          UserAddress[]
-  orders             Order[]
-  inventory_logs     InventoryAuditLog[] // Relation for Admin actions
+  addresses       UserAddress[]
+  orders          Order[]
+  sizing_profiles UserSizingProfile[]
+  inventory_logs  InventoryAuditLog[] // Relation for Admin actions
 
   @@map("users")
 }
@@ -191,32 +203,32 @@ model AuthAuditLog {
 // ==========================================
 
 model InventoryCategory {
-  id          Int           @id @default(autoincrement())
-  name        String        @unique
+  id          Int             @id @default(autoincrement())
+  name        String          @unique
   type        InventoryType
   description String?
   items       InventoryItem[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   @@map("inventory_categories")
 }
 
 model InventoryItem {
-  id          String            @id @default(uuid())
-  categoryId  Int
-  category    InventoryCategory @relation(fields: [categoryId], references: [id])
+  id         String            @id @default(uuid())
+  categoryId Int
+  category   InventoryCategory @relation(fields: [categoryId], references: [id])
 
   name        String
   description String?
   sku         String? @unique
 
-  metadata    Json? // { "designer": "XYZ", "width": "60inch" }
+  metadata Json? // { "designer": "XYZ", "width": "60inch" }
 
   // Visuals
-  colorHex    String?
-  colorName   String?
-  images      Json?   @default("{}")
+  colorHex  String?
+  colorName String?
+  images    Json?   @default("{}")
 
   // Pricing & Stock
   price             Decimal @db.Decimal(10, 2)
@@ -235,13 +247,13 @@ model InventoryItem {
 }
 
 model InventoryAuditLog {
-  id             String        @id @default(uuid())
-  itemId         String
-  item           InventoryItem @relation(fields: [itemId], references: [id])
+  id     String        @id @default(uuid())
+  itemId String
+  item   InventoryItem @relation(fields: [itemId], references: [id])
 
   // Fixed: Admin relation linked correctly to User table
-  adminId        String        @map("admin_id") @db.Uuid 
-  admin          User          @relation(fields: [adminId], references: [user_id])
+  adminId String @map("admin_id") @db.Uuid
+  admin   User   @relation(fields: [adminId], references: [user_id])
 
   action         AuditAction
   quantityChange Decimal?
@@ -274,19 +286,19 @@ model UserAddress {
 
   // Relation
   user User? @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
-  
+
   @@map("user_addresses")
 }
 
 model Order {
-  id                String   @id @default(uuid())
-  readableId        String?  @unique
-  user_id           String?  @db.Uuid // Type match fix
-  guestId           String?
+  id                  String  @id @default(uuid())
+  readableId          String? @unique
+  user_id             String? @db.Uuid // Type match fix
+  guestId             String?
   // Checkout Snapshots
   shippingAddressData Json?
   contactDetails      Json?
-  isContactVerified   Boolean  @default(false)
+  isContactVerified   Boolean @default(false)
 
   // Financials
   currency       String @default("PKR")
@@ -321,8 +333,8 @@ model Order {
 }
 
 model OrderItem {
-  id              String   @id @default(uuid())
-  orderId         String
+  id      String @id @default(uuid())
+  orderId String
 
   itemType        ItemType
   inventoryItemId String?
@@ -344,18 +356,62 @@ model OrderItem {
 }
 
 model OrderTimeline {
-  id          Int      @id @default(autoincrement())
-  orderId     String
+  id      Int    @id @default(autoincrement())
+  orderId String
 
   statusFrom  OperationalStatus?
   statusTo    OperationalStatus?
   description String
   actorName   String?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   // Relation
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("order_timeline")
+}
+
+// ==========================================
+// 4. SIZING MODULE
+// ==========================================
+
+model StandardSize {
+  id       Int    @id @default(autoincrement()) @map("size_id")
+  sizeCode String @unique @db.VarChar(10) // 'XS', 'S', 'M', 'L'
+  label    String @db.VarChar(50) // "Medium (Standard)"
+
+  // JSONB constraints for flexibility
+  recommendations Json? @default("{}") // { "height_min": 160, "weight_max_kg": 60 }
+  measurements    Json // { "chest": 38, "waist": 32, "length": 42 }
+
+  displayOrder Int     @default(0) // Sorting ke liye
+  isActive     Boolean @default(true)
+
+  // Relations
+  profiles UserSizingProfile[]
+
+  @@map("standard_sizes")
+}
+
+model UserSizingProfile {
+  id     String @id @default(uuid()) @map("profile_id")
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [user_id], onDelete: Cascade)
+
+  profileNickname String       @db.VarChar(50) // "My Eid Fit"
+  method          SizingMethod // 'Standard_Preset' or 'Jute_Fit_Custom'
+
+  // Standard Size (Agar user preset select kare)
+  standardSizeId Int?
+  standardSize   StandardSize? @relation(fields: [standardSizeId], references: [id])
+
+  // Custom Size (Agar user Jute Fit use kare)
+  customMeasurements Json? // { "unit": "Inches", "chest": 36, "waist": 28 ... }
+
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  @@map("user_sizing_profiles")
 }

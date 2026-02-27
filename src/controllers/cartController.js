@@ -24,42 +24,70 @@ const calculateOrderTotal = async (orderId) => {
 
 const cartController = {
 
-  // 1. ADD TO CART (Logic: Draft Order Banao ya Update karo)
+  
+
+  // 1. ADD TO CART (Fixed: Strict Search & Auto-Claim)
   // addToCart: async (req, res) => {
   //   try {
+  //     const userId = req.user ? req.user.user_id : null;
+  //     const guestId = req.user ? null : req.guestId;
 
-  //     console.log("👉 User ID:", req.user?.user_id);
-  //     console.log("👉 Guest ID from Middleware:", req.guestId);
+  //     let { itemId, quantity, itemType } = req.body;
 
-  //       const userId = req.user ? req.user.user_id : null;
-  //       const guestId = req.user ? null : req.guestId;
+  //     // Spelling normalization
+  //     if (itemType) {
+  //       itemType = itemType.toLowerCase();
+  //       if (itemType.includes('embellish')) itemType = 'embellishment';
+  //       else if (itemType.includes('fabric')) itemType = 'fabric';
+  //     }
 
-  //     const { itemId, quantity, itemType } = req.body; 
-
+  //     // 1. SMART SEARCH QUERY BUILDER
+  //     // Hum 'OR' use nahi karenge, hum specific filter banayenge
+  //     let searchFilter = { operationalStatus: 'checkout_draft' };
       
-  //     // A. Check Logic: Kya is user ka pehle se koi khula hua Cart (Draft Order) hai?
-  //     let order = await prisma.order.findFirst({
-  //       where: {
-  //         OR: [
-  //           { user_id: userId ? userId : undefined }, // Agar User hai
-  //           { guestId: guestId ? guestId : undefined } // Agar Guest hai
-  //         ],
-  //         operationalStatus: 'checkout_draft'
-  //       }
-  //     });
+  //     if (userId) {
+  //       searchFilter.user_id = userId; // Sirf User ID wala dhoondo
+  //     } else if (guestId) {
+  //       searchFilter.guestId = guestId; // Sirf Guest ID wala dhoondo
+  //     } else {
+  //       // Agar dono nahi hain (jo hona nahi chahiye), to error do ya return karo
+  //       // Lekin agar code yahan aaya to shayad purana 'orphan' cart dhoond le
+  //       // Isliye hum ensure karenge ke hum nayi creation ki taraf jayen
+  //     }
 
-  //     // Agar cart nahi hai, toh naya banao
+  //     let order = null;
+      
+  //     // Sirf tab dhoondo agar hamare paas koi ID hai
+  //     if (userId || guestId) {
+  //       order = await prisma.order.findFirst({
+  //         where: searchFilter
+  //       });
+  //     }
+
+  //     // 2. CREATE NEW CART (Agar nahi mila)
   //     if (!order) {
+  //       console.log(`🛒 Creating NEW Cart for ${userId ? 'User' : 'Guest'}...`);
   //       order = await prisma.order.create({
   //         data: {
-  //           user_id: userId,
+  //           user_id: userId,   
+  //           guestId: guestId,  // Yahan ab ye pakka save hoga
   //           operationalStatus: 'checkout_draft',
   //           currency: 'PKR'
   //         }
   //       });
+  //     } 
+      
+  //     // 3. AUTO-CLAIM (Zombie Cart Fix)
+  //     // Agar galti se cart mil gaya lekin usme Guest ID missing thi, to update kardo
+  //     if (order && !order.user_id && !order.guestId && guestId) {
+  //       console.log("👻 Claiming Orphan Cart...");
+  //       order = await prisma.order.update({
+  //         where: { id: order.id },
+  //         data: { guestId: guestId }
+  //       });
   //     }
 
-  //     // B. Inventory Check: Item dhoondo aur Stock check karo
+  //     // 4. Inventory Check
   //     const inventoryItem = await prisma.inventoryItem.findUnique({
   //       where: { id: itemId }
   //     });
@@ -75,7 +103,7 @@ const cartController = {
   //       });
   //     }
 
-  //     // C. Cart Item Logic: Kya ye item pehle se cart mein hai?
+  //     // 5. Add/Update Item
   //     const existingItem = await prisma.orderItem.findFirst({
   //       where: {
   //         orderId: order.id,
@@ -83,40 +111,37 @@ const cartController = {
   //       }
   //     });
 
-  //     const unitPrice = parseFloat(inventoryItem.price); // Price DB se uthao (Secure)
+  //     const unitPrice = parseFloat(inventoryItem.price);
   //     const totalPrice = unitPrice * quantity;
 
   //     if (existingItem) {
-  //       // Agar pehle se hai, to quantity update karo
   //       await prisma.orderItem.update({
   //         where: { id: existingItem.id },
   //         data: {
-  //           quantity: existingItem.quantity + quantity, // Purani + Nayi Quantity
+  //           quantity: existingItem.quantity + quantity,
   //           totalLinePrice: (existingItem.quantity + quantity) * unitPrice
   //         }
   //       });
   //     } else {
-  //       // Agar naya hai, to insert karo
   //       await prisma.orderItem.create({
   //         data: {
   //           orderId: order.id,
-  //           itemType: itemType || 'fabric', // Default fabric
+  //           itemType: itemType || 'fabric',
   //           inventoryItemId: itemId,
-  //           nameAtPurchase: inventoryItem.name, // Name freeze kar rahe hain
-  //           unitPrice: unitPrice,               // Price freeze kar rahe hain
+  //           nameAtPurchase: inventoryItem.name,
+  //           unitPrice: unitPrice,
   //           quantity: parseFloat(quantity),
   //           totalLinePrice: totalPrice
   //         }
   //       });
   //     }
 
-  //     // D. Total Recalculate karo
+  //     // 6. Recalculate & Response
   //     await calculateOrderTotal(order.id);
 
-  //     // E. Updated Cart wapis bhejo
   //     const updatedCart = await prisma.order.findUnique({
   //       where: { id: order.id },
-  //       include: { items: true } // Items bhi sath bhejo
+  //       include: { items: true }
   //     });
 
   //     res.status(200).json({
@@ -131,117 +156,156 @@ const cartController = {
   //   }
   // },
 
-  // 1. ADD TO CART (Fixed: Strict Search & Auto-Claim)
+  // 1. ADD TO CART (Phase 4 - Smart Cart with Sizing only for Designs)
   addToCart: async (req, res) => {
     try {
       const userId = req.user ? req.user.user_id : null;
       const guestId = req.user ? null : req.guestId;
 
-      let { itemId, quantity, itemType } = req.body;
+      let { 
+        itemId,       // Ye InventoryItem ID bhi ho sakti hai aur Design ID bhi
+        quantity, 
+        itemType,     // 'fabric', 'embellishment', ya 'design_bundle'
+        sizingMethod, // 'Standard_Preset' ya 'Jute_Fit_Custom' (Sirf designs ke liye)
+        standardSizeId, 
+        customMeasurements 
+      } = req.body;
 
-      // Spelling normalization
+      // 1. Normalize Item Type
       if (itemType) {
         itemType = itemType.toLowerCase();
         if (itemType.includes('embellish')) itemType = 'embellishment';
-        else if (itemType.includes('fabric')) itemType = 'fabric';
+      } else {
+        itemType = 'fabric';
       }
 
-      // 1. SMART SEARCH QUERY BUILDER
-      // Hum 'OR' use nahi karenge, hum specific filter banayenge
+      // 2. Find or Create Cart (Draft Order)
       let searchFilter = { operationalStatus: 'checkout_draft' };
-      
-      if (userId) {
-        searchFilter.user_id = userId; // Sirf User ID wala dhoondo
-      } else if (guestId) {
-        searchFilter.guestId = guestId; // Sirf Guest ID wala dhoondo
-      } else {
-        // Agar dono nahi hain (jo hona nahi chahiye), to error do ya return karo
-        // Lekin agar code yahan aaya to shayad purana 'orphan' cart dhoond le
-        // Isliye hum ensure karenge ke hum nayi creation ki taraf jayen
-      }
+      if (userId) searchFilter.user_id = userId;
+      else if (guestId) searchFilter.guestId = guestId;
 
       let order = null;
-      
-      // Sirf tab dhoondo agar hamare paas koi ID hai
       if (userId || guestId) {
-        order = await prisma.order.findFirst({
-          where: searchFilter
-        });
+        order = await prisma.order.findFirst({ where: searchFilter });
       }
 
-      // 2. CREATE NEW CART (Agar nahi mila)
       if (!order) {
-        console.log(`🛒 Creating NEW Cart for ${userId ? 'User' : 'Guest'}...`);
         order = await prisma.order.create({
           data: {
             user_id: userId,   
-            guestId: guestId,  // Yahan ab ye pakka save hoga
+            guestId: guestId,  
             operationalStatus: 'checkout_draft',
             currency: 'PKR'
           }
         });
       } 
       
-      // 3. AUTO-CLAIM (Zombie Cart Fix)
-      // Agar galti se cart mil gaya lekin usme Guest ID missing thi, to update kardo
+      // Zombie Cart Claim Fix
       if (order && !order.user_id && !order.guestId && guestId) {
-        console.log("👻 Claiming Orphan Cart...");
         order = await prisma.order.update({
           where: { id: order.id },
           data: { guestId: guestId }
         });
       }
 
-      // 4. Inventory Check
-      const inventoryItem = await prisma.inventoryItem.findUnique({
-        where: { id: itemId }
-      });
+      // =========================================================
+      // 🚀 THE LOGIC SPLIT: FABRIC vs DESIGN BUNDLE
+      // =========================================================
+      let unitPrice = 0;
+      let itemName = "";
+      let itemAttributes = {}; 
+      let finalInventoryItemId = null;
+      let finalDesignId = null;
 
-      if (!inventoryItem) {
-        return res.status(404).json({ success: false, message: "Item not found" });
-      }
+      if (itemType === 'fabric' || itemType === 'embellishment') {
+        
+        // --- A. RAW MATERIAL FLOW (NO SIZING) ---
+        const inventoryItem = await prisma.inventoryItem.findUnique({ where: { id: itemId } });
+        if (!inventoryItem) return res.status(404).json({ success: false, message: "Material not found" });
+        if (inventoryItem.stockQuantity < quantity) {
+          return res.status(400).json({ success: false, message: "Out of stock" });
+        }
 
-      if (inventoryItem.stockQuantity < quantity) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `Out of Stock! Only ${inventoryItem.stockQuantity} units available.` 
+        unitPrice = parseFloat(inventoryItem.price);
+        itemName = inventoryItem.name;
+        finalInventoryItemId = itemId;
+        // Notice: Sizing attributes remain empty {}
+        
+      } else if (itemType === 'design_bundle') {
+        
+        // --- B. CUSTOM DESIGN FLOW (SIZING APPLIES HERE) ---
+        const design = await prisma.design.findUnique({ 
+          where: { id: itemId },
+          include: { product: true } // Base product price ke liye
         });
+        
+        if (!design) return res.status(404).json({ success: false, message: "Design not found" });
+
+        unitPrice = design.product ? parseFloat(design.product.base_stitching_price) : 5000; // Fallback price
+        itemName = design.name || "Custom Design Outfit";
+        finalDesignId = itemId;
+
+        // Yahan Sizing Zaroori Hai!
+        if (sizingMethod === 'Standard_Preset' && standardSizeId) {
+          itemAttributes = { method: 'Standard_Preset', standardSizeId };
+        } else if (sizingMethod === 'Jute_Fit_Custom' && customMeasurements) {
+          itemAttributes = { method: 'Jute_Fit_Custom', customMeasurements };
+        } else {
+          return res.status(400).json({ success: false, message: "Please provide valid sizing details for your design." });
+        }
+
+      } else {
+        return res.status(400).json({ success: false, message: "Invalid item type" });
       }
 
-      // 5. Add/Update Item
-      const existingItem = await prisma.orderItem.findFirst({
-        where: {
-          orderId: order.id,
-          inventoryItemId: itemId
+      const totalPrice = unitPrice * quantity;
+
+      // =========================================================
+      // 3. Add to Cart Items
+      // =========================================================
+      // Dhoondo ke kya EXACT same item cart mein pehle se hai?
+      const existingItems = await prisma.orderItem.findMany({
+        where: { 
+          orderId: order.id, 
+          itemType: itemType,
+          ...(finalInventoryItemId && { inventoryItemId: finalInventoryItemId }),
+          ...(finalDesignId && { designId: finalDesignId })
         }
       });
 
-      const unitPrice = parseFloat(inventoryItem.price);
-      const totalPrice = unitPrice * quantity;
+      // Match attributes (taake alag size ka kurta naya row banaye, quantity merge na ho)
+      const exactMatchItem = existingItems.find(item => 
+        JSON.stringify(item.attributes || {}) === JSON.stringify(itemAttributes)
+      );
 
-      if (existingItem) {
+      if (exactMatchItem) {
+        // Same kapda OR Same Design with Same Size -> Update Quantity
         await prisma.orderItem.update({
-          where: { id: existingItem.id },
+          where: { id: exactMatchItem.id },
           data: {
-            quantity: existingItem.quantity + quantity,
-            totalLinePrice: (existingItem.quantity + quantity) * unitPrice
+            quantity: exactMatchItem.quantity + quantity,
+            totalLinePrice: (exactMatchItem.quantity + quantity) * unitPrice,
+            attributes: itemAttributes
           }
         });
       } else {
+        // Naya Material OR Naya Design OR Same Design with Different Size -> Create New Row
         await prisma.orderItem.create({
           data: {
             orderId: order.id,
-            itemType: itemType || 'fabric',
-            inventoryItemId: itemId,
-            nameAtPurchase: inventoryItem.name,
+            itemType: itemType,
+            inventoryItemId: finalInventoryItemId,
+            designId: finalDesignId, // 👈 Yahan Design ID jayegi
+            nameAtPurchase: itemName,
             unitPrice: unitPrice,
             quantity: parseFloat(quantity),
-            totalLinePrice: totalPrice
+            totalLinePrice: totalPrice,
+            attributes: itemAttributes // 👈 Yahan Sizing jayegi (Sirf design ke case mein)
           }
         });
       }
 
-      // 6. Recalculate & Response
+      // 4. Recalculate & Response
       await calculateOrderTotal(order.id);
 
       const updatedCart = await prisma.order.findUnique({
@@ -251,7 +315,7 @@ const cartController = {
 
       res.status(200).json({
         success: true,
-        message: "Item added to cart",
+        message: "Item added to cart successfully!",
         cart: updatedCart
       });
 
