@@ -234,17 +234,22 @@ const cartController = {
       } else if (itemType === 'design_bundle') {
         
         // --- B. CUSTOM DESIGN FLOW (SIZING APPLIES HERE) ---
-        const design = await prisma.design.findUnique({ 
-          where: { id: itemId },
-          include: { product: true } // Base product price ke liye
-        });
+        // const design = await prisma.design.findUnique({ 
+        //   where: { id: itemId },
+        //   include: { product: true } // Base product price ke liye
+        // });
         
-        if (!design) return res.status(404).json({ success: false, message: "Design not found" });
+        // if (!design) return res.status(404).json({ success: false, message: "Design not found" });
 
-        unitPrice = design.product ? parseFloat(design.product.base_stitching_price) : 5000; // Fallback price
-        itemName = design.name || "Custom Design Outfit";
-        finalDesignId = itemId;
+        // unitPrice = design.product ? parseFloat(design.product.base_stitching_price) : 5000; // Fallback price
+        // itemName = design.name || "Custom Design Outfit";
+        // finalDesignId = itemId;
 
+        //for testing
+        unitPrice = 5000; // Fake Price
+        itemName = "Test Custom Outfit (Dummy)";
+        finalDesignId = null;
+////////////////////////////////////////////////////////////
         // Yahan Sizing Zaroori Hai!
         if (sizingMethod === 'Standard_Preset' && standardSizeId) {
           itemAttributes = { method: 'Standard_Preset', standardSizeId };
