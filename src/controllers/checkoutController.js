@@ -110,16 +110,16 @@ const checkoutController = {
   },
 
   
-  // --- STEP 3: VERIFY OTP & AUTO-REGISTER USER ---
+  
+
+  // --- STEP 3: VERIFY OTP & AUTO-LOGIN (Updated with Token) ---
   // verifyOTP: async (req, res) => {
   //   try {
-  //     // Identify User or Guest
   //     const userId = req.user ? req.user.user_id : null;
   //     const guestId = req.user ? null : req.guestId;
-
   //     const { code } = req.body;
 
-  //     // 1. Find Order (Guest ka ya User ka)
+  //     // 1. Order Dhoondo
   //     const order = await prisma.order.findFirst({
   //       where: {
   //         OR: [
@@ -132,86 +132,76 @@ const checkoutController = {
 
   //     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
-  //     const phone = order.contactDetails.phone;
-
-  //     // 2. Verify Code
+  //     // 2. Code Verify
   //     const validCode = await prisma.verificationCode.findFirst({
-  //       where: { identifier: phone, code: code, is_used: false }
+  //       where: { identifier: order.contactDetails.phone, code: code, is_used: false }
   //     });
 
   //     if (!validCode) {
   //       return res.status(400).json({ success: false, message: "Invalid OTP" });
   //     }
 
-  //     // Code Used Mark karo
   //     await prisma.verificationCode.update({ where: { code_id: validCode.code_id }, data: { is_used: true } });
 
-  //     // ============================================================
-  //     // 🚀 THE MAGIC: GUEST CONVERSION TO REGISTERED USER
-  //     // ============================================================
-      
-  //     let finalUserId = order.user_id; // Agar pehle se login tha to wahi rahega
+  //     // 3. Guest Conversion Logic
+  //     let finalUserId = order.user_id;
 
   //     if (!finalUserId) {
-  //       // Agar Guest tha (user_id null tha), to check karo user exist karta hai?
   //       let user = await prisma.user.findFirst({
   //         where: { 
   //           OR: [
-  //             { mobile_number: phone },
+  //             { mobile_number: order.contactDetails.phone },
   //             { email: order.contactDetails.email }
   //           ]
   //         }
   //       });
 
   //       if (!user) {
-  //         // SCENARIO A: Brand New User -> Create Account
-  //         console.log("🆕 Creating new account for Guest...");
-          
-  //         // Name split logic (First/Last)
+  //         // New User Create
   //         const fullNameParts = order.contactDetails.fullName.split(' ');
-  //         const firstName = fullNameParts[0];
-  //         const lastName = fullNameParts.slice(1).join(' ') || '';
-
   //         user = await prisma.user.create({
   //           data: {
-  //             first_name: firstName,
-  //             last_name: lastName,
+  //             first_name: fullNameParts[0],
+  //             last_name: fullNameParts.slice(1).join(' ') || '',
   //             email: order.contactDetails.email,
-  //             mobile_number: phone,
-  //             is_mobile_verified: true, // OTP abhi verify hua hai!
-  //             role: 'Registered',
-  //             password_hash: null // Password user baad mein set karega
+  //             mobile_number: order.contactDetails.phone,
+  //             is_mobile_verified: true,
+  //             role: 'Registered'
   //           }
   //         });
-  //       } else {
-  //         // SCENARIO B: User pehle se tha lekin Guest ban kar aaya -> Link kar do
-  //         console.log("🔗 Linking Guest Order to existing User...");
   //       }
-
+        
   //       finalUserId = user.user_id;
 
-  //       // Order ko Naye User ke sath Link kardo (Guest ID hata do)
+  //       // Link Order to User
   //       await prisma.order.update({
   //         where: { id: order.id },
-  //         data: { 
-  //           user_id: finalUserId,
-  //           guestId: null, // Guest ID ab khatam, ab ye pakka user hai
-  //           isContactVerified: true
-  //         }
+  //         data: { user_id: finalUserId, guestId: null, isContactVerified: true }
   //       });
   //     } else {
-  //       // Agar pehle se logged in tha, bas verified mark kardo
   //       await prisma.order.update({
   //         where: { id: order.id },
   //         data: { isContactVerified: true }
   //       });
   //     }
-  //     // ============================================================
+
+  //     // ----------------------------------------------------
+  //     // 🔥 NEW ADDITION: Generate JWT Token (Auto Login)
+  //     // ----------------------------------------------------
+  //     const token = jwt.sign(
+  //       { user_id: finalUserId, role: 'Registered' },
+  //       process.env.JWT_SECRET,
+  //       { expiresIn: '30d' }
+  //     );
 
   //     res.status(200).json({ 
   //       success: true, 
   //       message: "Phone verified & Account Linked!",
-  //       userId: finalUserId // Frontend ko batao ke user ID kya hai (taake wo login state update kare)
+  //       token: token,  // 👈 Ye Token ab agle step mein kaam aayega
+  //       user: {
+  //         id: finalUserId,
+  //         name: order.contactDetails.fullName
+  //       }
   //     });
 
   //   } catch (error) {
@@ -220,14 +210,14 @@ const checkoutController = {
   //   }
   // },
 
-  // --- STEP 3: VERIFY OTP & AUTO-LOGIN (Updated with Token) ---
+  // --- STEP 3: VERIFY OTP & AUTO-LOGIN (With Phase 5 Sizing Magic) ---
   verifyOTP: async (req, res) => {
     try {
       const userId = req.user ? req.user.user_id : null;
       const guestId = req.user ? null : req.guestId;
       const { code } = req.body;
 
-      // 1. Order Dhoondo
+      // 1. Order Dhoondo (Items ke sath taake Sizing check kar sakein)
       const order = await prisma.order.findFirst({
         where: {
           OR: [
@@ -235,7 +225,8 @@ const checkoutController = {
             { guestId: guestId ? guestId : undefined }
           ],
           operationalStatus: 'checkout_draft'
-        }
+        },
+        include: { items: true } // 👈 PHASE 5: Items include kar liye
       });
 
       if (!order) return res.status(404).json({ success: false, message: "Order not found" });
@@ -293,9 +284,57 @@ const checkoutController = {
         });
       }
 
-      // ----------------------------------------------------
-      // 🔥 NEW ADDITION: Generate JWT Token (Auto Login)
-      // ----------------------------------------------------
+      // ===============================================================
+      // 🚀 PHASE 5: SIZING PROFILE AUTO-SAVE MAGIC
+      // ===============================================================
+      // Check if order has design_bundle with sizing, and save it for the user
+      if (order.items && order.items.length > 0) {
+        // Track handled sizes to avoid duplicates if cart has 3 same sized items
+        const processedSizes = new Set(); 
+
+        for (const item of order.items) {
+          if (item.itemType === 'design_bundle' && item.attributes && item.attributes.method) {
+            
+            const sizeString = JSON.stringify(item.attributes);
+            if (processedSizes.has(sizeString)) continue; // Already processed
+            processedSizes.add(sizeString);
+
+            const { method, standardSizeId, customMeasurements } = item.attributes;
+
+            // Check if user already has this EXACT profile
+            const existingProfile = await prisma.userSizingProfile.findFirst({
+              where: {
+                userId: finalUserId,
+                method: method,
+                // Agar standard hai to ID match karo
+                ...(method === 'Standard_Preset' && { standardSizeId: standardSizeId }),
+                // Agar custom hai to JSON DB match mushkil hota hai, isliye stringify kar ke verify kar lenge baad mein
+              }
+            });
+
+            // Agar profile nahi mili, to nayi create kar do!
+            if (!existingProfile) {
+              const profileName = method === 'Standard_Preset' ? 'Auto-Saved Standard Size' : 'Auto-Saved Custom Fit';
+              
+              await prisma.userSizingProfile.create({
+                data: {
+                  userId: finalUserId,
+                  profileNickname: profileName,
+                  method: method,
+                  standardSizeId: method === 'Standard_Preset' ? standardSizeId : null,
+                  customMeasurements: method === 'Jute_Fit_Custom' ? customMeasurements : null,
+                  isDefault: false 
+                }
+              });
+              console.log(`✨ Magic Sizing Profile Created for User ${finalUserId}`);
+            }
+          }
+        }
+      }
+      // ===============================================================
+
+      // 4. Generate JWT Token (Auto Login)
+      const jwt = require('jsonwebtoken'); // Ensure this is imported at top of file too
       const token = jwt.sign(
         { user_id: finalUserId, role: 'Registered' },
         process.env.JWT_SECRET,
@@ -304,12 +343,9 @@ const checkoutController = {
 
       res.status(200).json({ 
         success: true, 
-        message: "Phone verified & Account Linked!",
-        token: token,  // 👈 Ye Token ab agle step mein kaam aayega
-        user: {
-          id: finalUserId,
-          name: order.contactDetails.fullName
-        }
+        message: "Phone verified, Account Linked & Sizes Saved!",
+        token: token, 
+        user: { id: finalUserId, name: order.contactDetails.fullName }
       });
 
     } catch (error) {
