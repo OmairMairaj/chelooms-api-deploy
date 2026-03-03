@@ -43,6 +43,8 @@ class GalleryService {
           images: true, // Cloudinary URLs yahan aayengi
           colorName: true,
           colorHex: true,
+          stockQuantity: true,
+          lowStockThreshold: true,
           category: {
             select: { name: true }
           }
