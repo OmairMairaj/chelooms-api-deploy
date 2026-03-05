@@ -86,16 +86,50 @@ const updateUser = async (req, res) => {
 };
 
 // 5. Delete User
-const deleteUser = async (req, res) => {
+// const deleteUser = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const adminId = req.user.user_id; // From Middleware
+
+//         const result = await userService.deleteUser(id, adminId);
+
+//         res.status(200).json({
+//             success: true,
+//             message: result.message
+//         });
+//     } catch (error) {
+//         res.status(400).json({ success: false, message: error.message });
+//     }
+// };
+
+const toggleUserStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const adminId = req.user.user_id; // From Middleware
+        const adminId = req.user.user_id; // Requires 'protect' middleware on this route
 
-        const result = await userService.deleteUser(id, adminId);
+        const result = await userService.toggleUserStatus(id, adminId);
+        res.status(200).json({ success: true, message: result.message });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
 
+const updateUserSizingByAdmin = async (req, res) => {
+    try {
+        const { profileId } = req.params; // Sizing profile ki ID
+        const { customMeasurements } = req.body;
+        const adminId = req.user.user_id;
+
+        if (!customMeasurements) {
+            return res.status(400).json({ success: false, message: "Measurements are required." });
+        }
+
+        const updatedProfile = await userService.updateUserSizing(profileId, adminId, customMeasurements);
+        
         res.status(200).json({
             success: true,
-            message: result.message
+            message: "User's sizing profile updated successfully",
+            data: updatedProfile
         });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
@@ -107,5 +141,6 @@ module.exports = {
     getAllUsers,
     getUserById,
     updateUser,
-    deleteUser
+    toggleUserStatus,
+    updateUserSizingByAdmin
 };
