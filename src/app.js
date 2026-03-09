@@ -7,6 +7,8 @@ const galleryRoutes = require('./routes/galleryRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const checkoutRoutes = require('./routes/checkoutRoutes');
 const sizingRoutes = require('./routes/sizingRoutes');
+const userRoutes = require('./routes/userRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 const app = express();
 
 // --- Middlewares ---
@@ -18,7 +20,7 @@ app.use(helmet());
 app.use(cors({
   origin: 'http://localhost:3000', // Frontend URL (No slash at end)
   credentials: true,               // Cookies/Token allow
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
 }));
 
 
@@ -33,6 +35,8 @@ app.use('/api/gallery', galleryRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/sizing', sizingRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/orders', orderRoutes);
 
 
 // --- Global Error Handler ---

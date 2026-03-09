@@ -62,7 +62,7 @@ router.patch('/items/:id/stock',
 
 router.post('/items', 
     protect, 
-    authorize('Administrator', 'Inventory_Manager'), 
+    authorize('Administrator', 'Inventory_Manager') , 
     
     // NAYA WRAPPER: Ye humein exact error batayega!
     function(req, res, next) {
@@ -80,6 +80,22 @@ router.post('/items',
     },
 
     inventoryController.addItem
+);
+
+
+// Maqsad: Item ki basic details (Name, Price, SKU) update karna - (Stock nahi!)
+router.put('/items/:id', 
+    protect, 
+    authorize('Administrator'), 
+    inventoryController.updateItemDetails
+);
+
+// Route: PATCH /api/inventory/items/:id/toggle-status
+// Maqsad: Item ko chupaana ya wapis lana (Soft Delete)
+router.patch('/items/:id/toggle-status', 
+    protect, 
+    authorize('Administrator'), 
+    inventoryController.toggleItemStatus
 );
 
 module.exports = router;

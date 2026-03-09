@@ -42,6 +42,85 @@ const sizingController = {
     }
   },
 
+  // 3. ADMIN: Get All Standard Sizes (Active + Inactive dono aayenge)
+  getAdminStandardSizes: async (req, res) => {
+    try {
+      const sizes = await prisma.standardSize.findMany({
+        orderBy: { displayOrder: 'asc' } // S, M, L tarteeb mein
+      });
+
+      res.status(200).json({ 
+        success: true, 
+        message: "All standard sizes fetched for Admin",
+        data: sizes 
+      });
+    } catch (error) {
+      console.error("Get Admin Sizes Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  // 4. ADMIN: Update Standard Size Details (e.g. Chest 38 to 39)
+  updateStandardSize: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { label, recommendations, measurements, displayOrder } = req.body;
+      
+      // Note: Hum sizeCode (jaise 'M') ko update karne ki ijazat nahi de rahe taake purana data kharab na ho.
+      // Sirf measurements aur label update honge.
+
+      const sizeId = parseInt(id, 10);
+      if (isNaN(sizeId)) return res.status(400).json({ success: false, message: "Invalid ID format" });
+
+      const existingSize = await prisma.standardSize.findUnique({ where: { id: sizeId } });
+      if (!existingSize) return res.status(404).json({ success: false, message: "Standard Size not found" });
+
+      const updatedSize = await prisma.standardSize.update({
+        where: { id: sizeId },
+        data: {
+          label: label !== undefined ? label : existingSize.label,
+          recommendations: recommendations !== undefined ? recommendations : existingSize.recommendations,
+          measurements: measurements !== undefined ? measurements : existingSize.measurements,
+          displayOrder: displayOrder !== undefined ? displayOrder : existingSize.displayOrder
+        }
+      });
+
+      res.status(200).json({ 
+        success: true, 
+        message: "Standard size updated successfully", 
+        data: updatedSize 
+      });
+    } catch (error) {
+      console.error("Update Standard Size Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  // 5. ADMIN: Toggle Standard Size Status (Hide / Unhide)
+  toggleStandardSizeStatus: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sizeId = parseInt(id, 10);
+
+      const existingSize = await prisma.standardSize.findUnique({ where: { id: sizeId } });
+      if (!existingSize) return res.status(404).json({ success: false, message: "Standard Size not found" });
+
+      const updatedSize = await prisma.standardSize.update({
+        where: { id: sizeId },
+        data: { isActive: !existingSize.isActive } // True ko False, False ko True karega
+      });
+
+      res.status(200).json({ 
+        success: true, 
+        message: `Standard size is now ${updatedSize.isActive ? 'Active' : 'Inactive (Hidden)'}`, 
+        data: updatedSize 
+      });
+    } catch (error) {
+      console.error("Toggle Standard Size Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
   // 2. PUBLIC: Get All Standard Sizes (Dropdown ke liye)
   getAllStandardSizes: async (req, res) => {
     try {

@@ -9,8 +9,24 @@ router.get('/standard', sizingController.getAllStandardSizes);
 // Admin ke liye (Sizes create karne ka raasta)
 // Note: Abhi humne protect/authorize nahi lagaya taake aap easily test kar sako
 router.post('/standard', sizingController.createStandardSize);
+router.get('/admin/standard', 
+    protect, 
+    authorize('Administrator'), 
+    sizingController.getAdminStandardSizes
+);
 
+// Maqsad: Size ki measurements (chest, waist) ya label theek karna
+router.put('/admin/standard/:id', 
+    protect, 
+    authorize('Administrator'), 
+    sizingController.updateStandardSize
+);
 
+router.patch('/admin/standard/:id/toggle', 
+    protect, 
+    authorize('Administrator'), 
+    sizingController.toggleStandardSizeStatus
+);
 
 // User apni profile banayega aur dekhega
 router.post('/profile', protect, sizingController.createUserProfile);

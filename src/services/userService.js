@@ -119,7 +119,7 @@ const getUserById = async (userId) => {
             deleted_at: true, // Status check karne ke liye
             
             // 🚀 E-commerce Magic: User ki Sizing aur Orders include kar liye
-            sizingProfiles: true, 
+            sizing_profiles: true, 
             orders: {
                 orderBy: { createdAt: 'desc' },
                 take: 5 // Shuru mein sirf 5 recent orders dikhayenge

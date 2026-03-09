@@ -6,19 +6,14 @@ const inventoryService = require('../services/inventoryService');
 class InventoryController {
 
   // 1. Create Category
-  // FR-02.04: Standardized Taxonomy
   async createCategory(req, res) {
     try {
       const { name, type, description } = req.body;
- 
-      // Basic Validation
       if (!name || !type) {
         return res.status(400).json({ error: "Name and Type (FABRIC/EMBELLISHMENT) are required" });
       }
-
       const category = await inventoryService.createCategory({ name, type, description });
       res.status(201).json({ success: true, data: category });
-
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
@@ -34,8 +29,6 @@ class InventoryController {
     }
   }
 
-  // 3. Add Inventory Item
-  // FR-02.01: Allow authorized managers to add items
   // 3. Add Inventory Item (With Bulletproof Debugging)
   async addItem(req, res) {
     try {
@@ -49,12 +42,10 @@ class InventoryController {
       console.log("Req Files:", req.files);
       console.log("--- DEBUG END ---");
 
-      // Agar user hi nahi mila to yahin rok do
       if (!adminId) {
         return res.status(401).json({ error: "Unauthorized: Admin ID missing" });
       }
 
-      // Agar body bilkul khali hai (undefined ya empty object)
       if (!req.body || !req.body.name) {
         return res.status(400).json({ 
             error: "Form Data is Empty!", 
@@ -62,22 +53,14 @@ class InventoryController {
         });
       }
 
-      // Required fields validation
       const categoryId = parseInt(req.body.categoryId, 10);
       const price = parseFloat(req.body.price);
       const stockQuantity = parseFloat(req.body.stockQuantity);
       
-      if (isNaN(categoryId) || categoryId < 1) {
-        return res.status(400).json({ error: "Valid categoryId (number) is required" });
-      }
-      if (isNaN(price) || price < 0) {
-        return res.status(400).json({ error: "Valid price (number) is required" });
-      }
-      if (isNaN(stockQuantity) || stockQuantity < 0) {
-        return res.status(400).json({ error: "Valid stockQuantity (number) is required" });
-      }
+      if (isNaN(categoryId) || categoryId < 1) return res.status(400).json({ error: "Valid categoryId is required" });
+      if (isNaN(price) || price < 0) return res.status(400).json({ error: "Valid price is required" });
+      if (isNaN(stockQuantity) || stockQuantity < 0) return res.status(400).json({ error: "Valid stockQuantity is required" });
 
-      // 1. Files Handle karo (Cloudinary returns path/secure_url, diskStorage returns path)
       const files = req.files || []; 
       let imagesJson = {};
 
@@ -90,7 +73,6 @@ class InventoryController {
         };
       }
 
-      // 2. Data Prepare
       const itemData = {
         categoryId,
         name: req.body.name.trim(),
@@ -104,7 +86,6 @@ class InventoryController {
         images: Object.keys(imagesJson).length > 0 ? imagesJson : undefined 
       };
       
-      // Service call
       const newItem = await inventoryService.createItem(itemData, adminId);
       
       res.status(201).json({ 
@@ -119,21 +100,18 @@ class InventoryController {
     }
   }
 
-  // 4. Update Stock (Override/Adjustment)
-  // FR-02.10: Log all inventory overrides
+  // 4. Update Stock ONLY (Override/Adjustment)
   async updateStock(req, res) {
     try {
-      const { id } = req.params; // Item ID form URL
+      const { id } = req.params; 
       const { quantityChange, reason } = req.body;
       const adminId = req.user?.user_id;
 
-      // Validation
       if (!quantityChange || !reason) {
         return res.status(400).json({ error: "Quantity change and Reason are required" });
       }
 
-      // FR-02.09: Reason length validation
-      if (reason.length < 5) { // Document said 20 chars, starting with 5 for testing
+      if (reason.length < 5) { 
         return res.status(400).json({ error: "Reason must be descriptive (min 5 chars)" });
       }
 
@@ -150,17 +128,55 @@ class InventoryController {
     }
   }
 
-  // 5. Get Items (Filterable)
+  // 5. Update Item Basic Details (Name, Price, etc. No Stock change here)
+  async updateItemDetails(req, res) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user?.user_id;
+      const updateData = req.body;
+
+      const updatedItem = await inventoryService.updateItemDetails(id, updateData, adminId);
+
+      res.status(200).json({
+        success: true,
+        message: "Item details updated successfully",
+        data: updatedItem
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // 6. Toggle Item Status (Soft Delete / Reactivate)
+  async toggleItemStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const adminId = req.user?.user_id;
+
+      const updatedItem = await inventoryService.toggleItemStatus(id, adminId);
+
+      res.status(200).json({
+        success: true,
+        message: `Item is now ${updatedItem.isActive ? 'Active' : 'Inactive (Hidden)'}`,
+        data: { id: updatedItem.id, isActive: updatedItem.isActive }
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  // 7. Get Items (Admin Dashboard List - Now Supports Pagination & Search)
   async getItems(req, res) {
     try {
-      // Query Params: ?categoryId=1&lowStockOnly=true
-      const filters = {
-        categoryId: req.query.categoryId,
-        lowStockOnly: req.query.lowStockOnly === 'true'
-      };
-
-      const items = await inventoryService.getItems(filters);
-      res.status(200).json({ success: true, count: items.length, data: items });
+      // Ab service direct req.query accept karegi (page, limit, search, status, etc.)
+      const result = await inventoryService.getItems(req.query);
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "Inventory items fetched successfully",
+        data: result.items,
+        meta: result.meta 
+      });
 
     } catch (error) {
       res.status(500).json({ error: error.message });
