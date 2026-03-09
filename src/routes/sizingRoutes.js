@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const sizingController = require('../controllers/sizingController');
-const { protect } = require('../middlewares/authMiddleware');
+const { protect, authorize } = require('../middlewares/authMiddleware');
 
 // User/Guest ke liye (bina token ke chalega taake wo sizes dekh sakein)
 router.get('/standard', sizingController.getAllStandardSizes);
