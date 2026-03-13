@@ -98,4 +98,12 @@ router.patch('/items/:id/toggle-status',
     inventoryController.toggleItemStatus
 );
 
+// Route: GET /api/inventory/items/:id
+// Maqsad: Single item ki poori detail lana (with Audit Logs history)
+router.get('/items/:id', 
+    protect, 
+    authorize('Administrator', 'Inventory_Manager'), 
+    inventoryController.getItemById
+);  
+
 module.exports = router;

@@ -216,7 +216,36 @@ class InventoryService {
       }
     };
   }
+
+  // 8. Get Single Item by ID (For Admin Detail View)
+  async getItemById(itemId) {
+    const item = await prisma.inventoryItem.findUnique({
+      where: { id: itemId },
+      include: { 
+        category: true, // Category ka naam waghera layega
+        auditLogs: {    // 🚀 Pro Feature: Aakhri 5 logs bhi sath layega
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: { 
+                admin: { 
+                    select: { first_name: true, last_name: true, role: true } 
+                } 
+            }
+        }
+      }
+    });
+
+    if (!item) {
+        throw new Error("Item not found");
+    }
+
+    return item;
+  }
+  
 }
+
+
+
 
 module.exports = new InventoryService();
 

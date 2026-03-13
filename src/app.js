@@ -9,6 +9,7 @@ const checkoutRoutes = require('./routes/checkoutRoutes');
 const sizingRoutes = require('./routes/sizingRoutes');
 const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const searchRoutes = require('./routes/searchRoutes');
 const app = express();
 
 // --- Middlewares ---
@@ -36,7 +37,8 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/checkout', checkoutRoutes);
 app.use('/api/sizing', sizingRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/orders', orderRoutes);
+app.use('/api/orders', orderRoutes);  
+app.use('/api/search', searchRoutes);
 
 
 // --- Global Error Handler ---

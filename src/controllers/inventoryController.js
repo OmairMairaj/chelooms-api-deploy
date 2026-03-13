@@ -182,6 +182,27 @@ class InventoryController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  // 8. Get Single Item by ID
+  async getItemById(req, res) {
+    try {
+      const { id } = req.params;
+      const item = await inventoryService.getItemById(id);
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "Item details fetched successfully",
+        data: item 
+      });
+    } catch (error) {
+      // Agar item na mile toh 404 bhejo
+      if (error.message === "Item not found") {
+        return res.status(404).json({ success: false, error: error.message });
+      }
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+  
 }
 
 module.exports = new InventoryController();
