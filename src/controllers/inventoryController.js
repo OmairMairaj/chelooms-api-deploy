@@ -1,3 +1,4 @@
+const posthog = require('../config/posthog');
 const inventoryService = require('../services/inventoryService');
 
 /**
@@ -87,6 +88,20 @@ class InventoryController {
       };
       
       const newItem = await inventoryService.createItem(itemData, adminId);
+
+      posthog.capture({
+        distinctId: adminId.toString(), // Jis admin ne item add kiya uski ID
+        event: 'Inventory_Item_Added',  // Event ka naam
+        properties: {
+          itemId: newItem.id,
+          itemName: newItem.name,
+          categoryType: req.body.type || 'Unknown', 
+          price: newItem.price,
+          initialStock: newItem.stockQuantity
+        }
+      });
+
+      await posthog.flush();
       
       res.status(201).json({ 
         success: true, 
