@@ -5,22 +5,80 @@ const jwt = require('jsonwebtoken');
 const checkoutController = {
 
   // STEP 1: SAVE SHIPPING ADDRESS
+  // saveShippingAddress: async (req, res) => {
+  //   try {
+  //     // 👇 FIX: User ya Guest Identify karo
+  //     const userId = req.user ? req.user.user_id : null;
+  //     const guestId = req.user ? null : req.guestId; 
+
+  //     const { 
+  //       fullName, phone, email, 
+  //       addressLine1, addressLine2, city, province, postalCode, country 
+  //     } = req.body;
+
+  //     if (!fullName || !phone || !addressLine1 || !city) {
+  //       return res.status(400).json({ success: false, message: "Please fill all required fields" });
+  //     }
+
+  //     // 👇 FIX: Order dhoondne ka logic (User OR Guest)
+  //     const order = await prisma.order.findFirst({
+  //       where: {
+  //         OR: [
+  //           { user_id: userId ? userId : undefined },
+  //           { guestId: guestId ? guestId : undefined }
+  //         ],
+  //         operationalStatus: 'checkout_draft'
+  //       }
+  //     });
+
+  //     if (!order) {
+  //       return res.status(404).json({ success: false, message: "No active cart found" });
+  //     }
+
+  //     // Data Prep
+  //     const shippingData = {
+  //       addressLine1, addressLine2, city, province, postalCode, country: country || 'Pakistan'
+  //     };
+
+  //     const contactData = {
+  //       fullName, phone, email
+  //     };
+
+  //     // Update Order
+  //     const updatedOrder = await prisma.order.update({
+  //       where: { id: order.id },
+  //       data: {
+  //         shippingAddressData: shippingData,
+  //         contactDetails: contactData,
+  //       }
+  //     });
+
+  //     res.status(200).json({
+  //       success: true,
+  //       message: "Shipping details saved",
+  //       orderId: updatedOrder.id
+  //     });
+
+  //   } catch (error) {
+  //     console.error("Save Address Error:", error);
+  //     res.status(500).json({ success: false, error: error.message });
+  //   }
+  // },
+
+  // STEP 1: SAVE SHIPPING ADDRESS (Smart Auto-Save Logic)
   saveShippingAddress: async (req, res) => {
     try {
-      // 👇 FIX: User ya Guest Identify karo
       const userId = req.user ? req.user.user_id : null;
       const guestId = req.user ? null : req.guestId; 
 
       const { 
+        savedAddressId, // 👈 FRONTEND YAHAN SE PURANE ADDRESS KI ID BHEJEGA (Option A)
+        label,          // (Optional) Frontend label bhej sakta hai jaise "Home" ya "Office"
         fullName, phone, email, 
         addressLine1, addressLine2, city, province, postalCode, country 
       } = req.body;
 
-      if (!fullName || !phone || !addressLine1 || !city) {
-        return res.status(400).json({ success: false, message: "Please fill all required fields" });
-      }
-
-      // 👇 FIX: Order dhoondne ka logic (User OR Guest)
+      // 1. Order Dhoondo
       const order = await prisma.order.findFirst({
         where: {
           OR: [
@@ -35,21 +93,80 @@ const checkoutController = {
         return res.status(404).json({ success: false, message: "No active cart found" });
       }
 
-      // Data Prep
-      const shippingData = {
-        addressLine1, addressLine2, city, province, postalCode, country: country || 'Pakistan'
-      };
+      let finalShippingData = {};
+      let finalContactData = {};
 
-      const contactData = {
-        fullName, phone, email
-      };
+      // =======================================================
+      // 🚀 THE SMART LOGIC: PURANA ADDRESS VS NAYA ADDRESS
+      // =======================================================
+      if (savedAddressId && userId) {
+        
+        // --- OPTION A: User ne pehle se save hua address select kiya ---
+        const existingAddress = await prisma.userAddress.findFirst({
+          where: { id: savedAddressId, user_id: userId }
+        });
 
-      // Update Order
+        if (!existingAddress) {
+          return res.status(404).json({ success: false, message: "Selected address not found" });
+        }
+
+        // Address Book se utha kar variables mein daal do
+        finalShippingData = {
+          addressLine1: existingAddress.addressLine1,
+          addressLine2: existingAddress.addressLine2,
+          city: existingAddress.city,
+          province: existingAddress.province,
+          postalCode: existingAddress.postalCode,
+          country: existingAddress.country
+        };
+        finalContactData = {
+          fullName: existingAddress.fullName,
+          phone: existingAddress.phone,
+          email: email || (req.user ? req.user.email : '')
+        };
+
+      } else {
+
+        // --- OPTION B: User ne naya address type kiya hai ---
+        if (!fullName || !phone || !addressLine1 || !city) {
+          return res.status(400).json({ success: false, message: "Please fill all required fields" });
+        }
+
+        finalShippingData = { addressLine1, addressLine2, city, province, postalCode, country: country || 'Pakistan' };
+        finalContactData = { fullName, phone, email };
+
+        // 🌟 AUTO-SAVE MAGIC (Sirf Registered Users ke liye) 🌟
+        if (userId) {
+          // Check karo user ke paas kitne address hain taake automatically naam rakh sakein (Address 1, Address 2)
+          const addressCount = await prisma.userAddress.count({ where: { user_id: userId } });
+          const dynamicLabel = label || `Address ${addressCount + 1}`;
+
+          await prisma.userAddress.create({
+            data: {
+              user_id: userId,
+              label: dynamicLabel,
+              fullName,
+              phone,
+              addressLine1,
+              addressLine2,
+              city,
+              province,
+              postalCode,
+              country: country || 'Pakistan',
+              isDefault: addressCount === 0 // Agar pehla address hai toh default bana do
+            }
+          });
+          console.log(`✨ New Address Auto-Saved as '${dynamicLabel}' for User ${userId}`);
+        }
+      }
+      // =======================================================
+
+      // 3. Update Order with Final Snapshot
       const updatedOrder = await prisma.order.update({
         where: { id: order.id },
         data: {
-          shippingAddressData: shippingData,
-          contactDetails: contactData,
+          shippingAddressData: finalShippingData,
+          contactDetails: finalContactData,
         }
       });
 
@@ -109,106 +226,6 @@ const checkoutController = {
     }
   },
 
-  
-  
-
-  // --- STEP 3: VERIFY OTP & AUTO-LOGIN (Updated with Token) ---
-  // verifyOTP: async (req, res) => {
-  //   try {
-  //     const userId = req.user ? req.user.user_id : null;
-  //     const guestId = req.user ? null : req.guestId;
-  //     const { code } = req.body;
-
-  //     // 1. Order Dhoondo
-  //     const order = await prisma.order.findFirst({
-  //       where: {
-  //         OR: [
-  //           { user_id: userId ? userId : undefined },
-  //           { guestId: guestId ? guestId : undefined }
-  //         ],
-  //         operationalStatus: 'checkout_draft'
-  //       }
-  //     });
-
-  //     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
-
-  //     // 2. Code Verify
-  //     const validCode = await prisma.verificationCode.findFirst({
-  //       where: { identifier: order.contactDetails.phone, code: code, is_used: false }
-  //     });
-
-  //     if (!validCode) {
-  //       return res.status(400).json({ success: false, message: "Invalid OTP" });
-  //     }
-
-  //     await prisma.verificationCode.update({ where: { code_id: validCode.code_id }, data: { is_used: true } });
-
-  //     // 3. Guest Conversion Logic
-  //     let finalUserId = order.user_id;
-
-  //     if (!finalUserId) {
-  //       let user = await prisma.user.findFirst({
-  //         where: { 
-  //           OR: [
-  //             { mobile_number: order.contactDetails.phone },
-  //             { email: order.contactDetails.email }
-  //           ]
-  //         }
-  //       });
-
-  //       if (!user) {
-  //         // New User Create
-  //         const fullNameParts = order.contactDetails.fullName.split(' ');
-  //         user = await prisma.user.create({
-  //           data: {
-  //             first_name: fullNameParts[0],
-  //             last_name: fullNameParts.slice(1).join(' ') || '',
-  //             email: order.contactDetails.email,
-  //             mobile_number: order.contactDetails.phone,
-  //             is_mobile_verified: true,
-  //             role: 'Registered'
-  //           }
-  //         });
-  //       }
-        
-  //       finalUserId = user.user_id;
-
-  //       // Link Order to User
-  //       await prisma.order.update({
-  //         where: { id: order.id },
-  //         data: { user_id: finalUserId, guestId: null, isContactVerified: true }
-  //       });
-  //     } else {
-  //       await prisma.order.update({
-  //         where: { id: order.id },
-  //         data: { isContactVerified: true }
-  //       });
-  //     }
-
-  //     // ----------------------------------------------------
-  //     // 🔥 NEW ADDITION: Generate JWT Token (Auto Login)
-  //     // ----------------------------------------------------
-  //     const token = jwt.sign(
-  //       { user_id: finalUserId, role: 'Registered' },
-  //       process.env.JWT_SECRET,
-  //       { expiresIn: '30d' }
-  //     );
-
-  //     res.status(200).json({ 
-  //       success: true, 
-  //       message: "Phone verified & Account Linked!",
-  //       token: token,  // 👈 Ye Token ab agle step mein kaam aayega
-  //       user: {
-  //         id: finalUserId,
-  //         name: order.contactDetails.fullName
-  //       }
-  //     });
-
-  //   } catch (error) {
-  //     console.error("Verify OTP Error:", error);
-  //     res.status(500).json({ success: false, error: error.message });
-  //   }
-  // },
 
   // --- STEP 3: VERIFY OTP & AUTO-LOGIN (With Phase 5 Sizing Magic) ---
   verifyOTP: async (req, res) => {

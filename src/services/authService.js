@@ -88,7 +88,9 @@ const loginUser = async ({ email, mobile_number, password, ipAddress, userAgent 
     let user;
     
     if (email) {
-        user = await prisma.user.findUnique({ where: { email } });
+        user = await prisma.user.findUnique({ where: { email },
+            include: { addresses: true } 
+        });
     } else if (mobile_number) {
         user = await prisma.user.findUnique({ where: { mobile_number } });
     }
