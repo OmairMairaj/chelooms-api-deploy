@@ -1,31 +1,46 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const {protect} = require('../middlewares/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
+const { validateBody } = require('../middlewares/validateBody');
+const {
+  registerSchema,
+  loginSchema,
+  refreshTokenSchema,
+  logoutSchema,
+  checkUserSchema,
+  socialLoginSchema,
+  forgotPasswordSchema,
+  verifyOTPSchema,
+  resetPasswordSchema,
+  sendMobileVerificationSchema,
+  verifyMobileLoginSchema,
+  sendMobileOtpSchema,
+  verifyCodeOnlySchema,
+} = require('../validators/authSchemas');
 
-// POST /api/v1/auth/register
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/social-login', authController.socialLogin);
+router.post('/register', validateBody(registerSchema), authController.register);
+router.post('/login', validateBody(loginSchema), authController.login);
+router.post('/social-login', validateBody(socialLoginSchema), authController.socialLogin);
 
-// Email ya phone se user check (puri row return)
-router.post('/check-user', authController.checkUser);
+router.post('/check-user', validateBody(checkUserSchema), authController.checkUser);
 
-// Session Management
-router.post('/refresh', authController.refreshToken); // Naya token lene ke liye
-router.post('/logout', authController.logout); // Logout karna
+router.post('/refresh', validateBody(refreshTokenSchema), authController.refreshToken);
+router.post('/logout', validateBody(logoutSchema), authController.logout);
 
-// Forgot Password
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/verify-otp', authController.verifyOTP);
-router.post('/reset-password', authController.resetPassword);
+router.post('/forgot-password', validateBody(forgotPasswordSchema), authController.forgotPassword);
+router.post('/verify-otp', validateBody(verifyOTPSchema), authController.verifyOTP);
+router.post('/reset-password', validateBody(resetPasswordSchema), authController.resetPassword);
 
-// Send Mobile Verification Code
-router.post('/send-mobile-otp', authController.sendMobileVerificationCode);
-router.post('/verify-mobile-login', authController.verifyMobileLogin);
+router.post(
+  '/send-mobile-otp',
+  validateBody(sendMobileVerificationSchema),
+  authController.sendMobileVerificationCode
+);
+router.post('/verify-mobile-login', validateBody(verifyMobileLoginSchema), authController.verifyMobileLogin);
 
-router.post('/send-otp', authController.sendMobileOtp);
-router.post('/verify-code', authController.verifyCodeOnly);
+router.post('/send-otp', validateBody(sendMobileOtpSchema), authController.sendMobileOtp);
+router.post('/verify-code', validateBody(verifyCodeOnlySchema), authController.verifyCodeOnly);
 
 router.get('/me', protect, authController.getMe);
 

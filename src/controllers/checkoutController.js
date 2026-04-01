@@ -127,11 +127,7 @@ const checkoutController = {
 
       } else {
 
-        // --- OPTION B: User ne naya address type kiya hai ---
-        if (!fullName || !phone || !addressLine1 || !city) {
-          return res.status(400).json({ success: false, message: "Please fill all required fields" });
-        }
-
+        // --- OPTION B: User ne naya address type kiya hai (required fields validated in checkoutShippingSchema) ---
         finalShippingData = { addressLine1, addressLine2, city, province, postalCode, country: country || 'Pakistan' };
         finalContactData = { fullName, phone, email };
 

@@ -69,23 +69,6 @@ const register = async (req, res) => {
     try {
         const { first_name, last_name, email, password, mobile_number } = req.body;
 
-        // 1. Mandatory Fields Check (First Name, Last Name, Password)
-        if (!first_name || !last_name || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "First Name, Last Name, and Password are required." 
-            });
-        }
-
-        // 2. Conditional Check (Kam se kam ek cheez honi chahiye: Email YA Mobile)
-        if (!email && !mobile_number) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Please provide either an Email or a Mobile Number." 
-            });
-        }
-
-        // Service Call
         const user = await authService.registerUser({ 
             first_name, last_name, email, password, mobile_number 
         });
@@ -104,22 +87,11 @@ const register = async (req, res) => {
 
 const login = async (req, res) => {
     try {
-        // 1. Input Update: Ab hum mobile_number bhi expect kar rahe hain
         const { email, mobile_number, password } = req.body;
         
         const ipAddress = req.ip || req.connection.remoteAddress;
         const userAgent = req.headers['user-agent'];
 
-        // 2. Validation Logic Update
-        // Password zaroori hai + (Email YA Mobile mein se koi ek zaroori hai)
-        if (!password || (!email && !mobile_number)) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Please provide Email or Mobile Number along with Password" 
-            });
-        }
-
-        // 3. Service Call (Dono fields bhej do, service khud dekhegi kaunsa use karna hai)
         const { user, accessToken, refreshToken } = await authService.loginUser({ 
             email, mobile_number, password, ipAddress, userAgent 
         });
@@ -204,13 +176,6 @@ const checkUser = async (req, res) => {
     try {
         const { email, mobile_number } = req.body;
 
-        if (!email && !mobile_number) {
-            return res.status(400).json({
-                success: false,
-                message: "Please provide either Email or Mobile Number."
-            });
-        }
-
         const user = await authService.getUserByEmailOrPhone({ email, mobile_number });
 
         if (!user) {
@@ -235,13 +200,8 @@ const socialLogin = async (req, res) => {
     try {
         const { provider, token } = req.body;
         
-        // IP Address extract (Security)
         const ipAddress = req.ip || req.connection.remoteAddress;
         const userAgent = req.headers['user-agent'];
-
-        if (!provider || !token) {
-            return res.status(400).json({ success: false, message: "Provider and Token are required" });
-        }
 
         const result = await authService.loginWithSocial({ 
             provider, token, ipAddress, userAgent 
@@ -263,7 +223,6 @@ const socialLogin = async (req, res) => {
 const forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
-        if (!email) return res.status(400).json({ success: false, message: "Email is required" });
 
         const result = await authService.forgotPassword(email);
         res.status(200).json({ success: true, ...result });
@@ -276,13 +235,7 @@ const forgotPassword = async (req, res) => {
 const verifyOTP = async (req, res) => {
     try {
         const { email, code } = req.body;
-        
-        // Validation
-        if (!email || !code) {
-            return res.status(400).json({ success: false, message: "Email and Code are required" });
-        }
 
-        // Service Call
         const result = await authService.verifyResetOTP(email, code);
         
         // Success Response (Token bhej rahe hain)
@@ -300,16 +253,8 @@ const verifyOTP = async (req, res) => {
 // API 3: Reset Password
 const resetPassword = async (req, res) => {
     try {
-        // Note: Token body mein bhi aa sakta hai ya Header mein
-        // Hum simplicity ke liye Body mein le rahe hain
         const { resetToken, newPassword } = req.body;
 
-        // Validation
-        if (!resetToken || !newPassword) {
-            return res.status(400).json({ success: false, message: "Token and New Password required" });
-        }
-
-        // Service Call
         const result = await authService.resetPassword(resetToken, newPassword);
 
         res.status(200).json({
@@ -327,11 +272,6 @@ const sendMobileVerificationCode = async (req, res) => {
     try {
         const { userId } = req.body;
 
-        if (!userId) {
-            return res.status(400).json({ success: false, message: "User ID is required" });
-        }
-
-        // Service Call
         const result = await authService.sendMobileOTP(userId);
 
         res.status(200).json({
@@ -348,15 +288,6 @@ const verifyMobileLogin = async (req, res) => {
     try {
         const { mobileNumber, code } = req.body;
 
-        // Validation
-        if (!mobileNumber || !code) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Mobile number and Code are required." 
-            });
-        }
-
-        // Info for Session (Optional but good for security)
         const deviceInfo = req.headers['user-agent'];
         const ipAddress = req.ip || req.connection.remoteAddress;
 
@@ -380,15 +311,6 @@ const sendMobileOtp = async (req, res) => {
     try {
         const { mobileNumber } = req.body;
 
-        // Validation
-        if (!mobileNumber) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Mobile number is required." 
-            });
-        }
-
-        // Service Call
         const result = await authService.generateOtpForMobile(mobileNumber);
 
         res.status(200).json(result);
@@ -402,14 +324,6 @@ const verifyCodeOnly = async (req, res) => {
     try {
         const { mobileNumber, code } = req.body;
 
-        if (!mobileNumber || !code) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Mobile number and Code are required." 
-            });
-        }
-
-        // Service Call
         const result = await authService.verifyMobileCodeSimple(mobileNumber, code);
 
         res.status(200).json(result);

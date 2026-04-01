@@ -2,12 +2,15 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController'); // Make sure name matches your file
 const { protect, authorize } = require('../middlewares/authMiddleware');
+const { validateBody } = require('../middlewares/validateBody');
+const { adminCreateUserSchema, adminUpdateUserSchema } = require('../validators/userSchemas');
 
 // 1. Create User
 // Chain: Login Check -> Role Check -> Controller
 router.post('/create', 
     protect, 
     authorize('Administrator'), // Sirf Admin allow hai
+    validateBody(adminCreateUserSchema),
     userController.createUser
 );
 
@@ -29,6 +32,7 @@ router.get('/:id',
 router.put('/:id', 
     protect, 
     authorize('Administrator'), 
+    validateBody(adminUpdateUserSchema),
     userController.updateUser
 );
 

@@ -24,138 +24,6 @@ const calculateOrderTotal = async (orderId) => {
 
 const cartController = {
 
-  
-
-  // 1. ADD TO CART (Fixed: Strict Search & Auto-Claim)
-  // addToCart: async (req, res) => {
-  //   try {
-  //     const userId = req.user ? req.user.user_id : null;
-  //     const guestId = req.user ? null : req.guestId;
-
-  //     let { itemId, quantity, itemType } = req.body;
-
-  //     // Spelling normalization
-  //     if (itemType) {
-  //       itemType = itemType.toLowerCase();
-  //       if (itemType.includes('embellish')) itemType = 'embellishment';
-  //       else if (itemType.includes('fabric')) itemType = 'fabric';
-  //     }
-
-  //     // 1. SMART SEARCH QUERY BUILDER
-  //     // Hum 'OR' use nahi karenge, hum specific filter banayenge
-  //     let searchFilter = { operationalStatus: 'checkout_draft' };
-      
-  //     if (userId) {
-  //       searchFilter.user_id = userId; // Sirf User ID wala dhoondo
-  //     } else if (guestId) {
-  //       searchFilter.guestId = guestId; // Sirf Guest ID wala dhoondo
-  //     } else {
-  //       // Agar dono nahi hain (jo hona nahi chahiye), to error do ya return karo
-  //       // Lekin agar code yahan aaya to shayad purana 'orphan' cart dhoond le
-  //       // Isliye hum ensure karenge ke hum nayi creation ki taraf jayen
-  //     }
-
-  //     let order = null;
-      
-  //     // Sirf tab dhoondo agar hamare paas koi ID hai
-  //     if (userId || guestId) {
-  //       order = await prisma.order.findFirst({
-  //         where: searchFilter
-  //       });
-  //     }
-
-  //     // 2. CREATE NEW CART (Agar nahi mila)
-  //     if (!order) {
-  //       console.log(`🛒 Creating NEW Cart for ${userId ? 'User' : 'Guest'}...`);
-  //       order = await prisma.order.create({
-  //         data: {
-  //           user_id: userId,   
-  //           guestId: guestId,  // Yahan ab ye pakka save hoga
-  //           operationalStatus: 'checkout_draft',
-  //           currency: 'PKR'
-  //         }
-  //       });
-  //     } 
-      
-  //     // 3. AUTO-CLAIM (Zombie Cart Fix)
-  //     // Agar galti se cart mil gaya lekin usme Guest ID missing thi, to update kardo
-  //     if (order && !order.user_id && !order.guestId && guestId) {
-  //       console.log("👻 Claiming Orphan Cart...");
-  //       order = await prisma.order.update({
-  //         where: { id: order.id },
-  //         data: { guestId: guestId }
-  //       });
-  //     }
-
-  //     // 4. Inventory Check
-  //     const inventoryItem = await prisma.inventoryItem.findUnique({
-  //       where: { id: itemId }
-  //     });
-
-  //     if (!inventoryItem) {
-  //       return res.status(404).json({ success: false, message: "Item not found" });
-  //     }
-
-  //     if (inventoryItem.stockQuantity < quantity) {
-  //       return res.status(400).json({ 
-  //         success: false, 
-  //         message: `Out of Stock! Only ${inventoryItem.stockQuantity} units available.` 
-  //       });
-  //     }
-
-  //     // 5. Add/Update Item
-  //     const existingItem = await prisma.orderItem.findFirst({
-  //       where: {
-  //         orderId: order.id,
-  //         inventoryItemId: itemId
-  //       }
-  //     });
-
-  //     const unitPrice = parseFloat(inventoryItem.price);
-  //     const totalPrice = unitPrice * quantity;
-
-  //     if (existingItem) {
-  //       await prisma.orderItem.update({
-  //         where: { id: existingItem.id },
-  //         data: {
-  //           quantity: existingItem.quantity + quantity,
-  //           totalLinePrice: (existingItem.quantity + quantity) * unitPrice
-  //         }
-  //       });
-  //     } else {
-  //       await prisma.orderItem.create({
-  //         data: {
-  //           orderId: order.id,
-  //           itemType: itemType || 'fabric',
-  //           inventoryItemId: itemId,
-  //           nameAtPurchase: inventoryItem.name,
-  //           unitPrice: unitPrice,
-  //           quantity: parseFloat(quantity),
-  //           totalLinePrice: totalPrice
-  //         }
-  //       });
-  //     }
-
-  //     // 6. Recalculate & Response
-  //     await calculateOrderTotal(order.id);
-
-  //     const updatedCart = await prisma.order.findUnique({
-  //       where: { id: order.id },
-  //       include: { items: true }
-  //     });
-
-  //     res.status(200).json({
-  //       success: true,
-  //       message: "Item added to cart",
-  //       cart: updatedCart
-  //     });
-
-  //   } catch (error) {
-  //     console.error("Add to Cart Error:", error);
-  //     res.status(500).json({ success: false, error: error.message });
-  //   }
-  // },
-
   // 1. ADD TO CART (Phase 4 - Smart Cart with Sizing only for Designs)
   addToCart: async (req, res) => {
     try {
@@ -370,63 +238,124 @@ const cartController = {
   },
 
 // 3. UPDATE ITEM QUANTITY
+// updateCartItem: async (req, res) => {
+//     try {
+//         const userId = req.user ? req.user.user_id : null;
+//         const guestId = req.user ? null : req.guestId;
+
+
+//       const { itemId, quantity } = req.body; // itemId yahan OrderItem ki ID hai (Inventory ki nahi)
+
+//       // 1. Validate Quantity
+//       if (quantity < 1) {
+//         return res.status(400).json({ success: false, message: "Quantity must be at least 1" });
+//       }
+
+//       // 2. Find Order Item & Verify Owner
+//       const orderItem = await prisma.orderItem.findFirst({
+//         where: {
+//             OR: [
+//               { user_id: userId ? userId : undefined }, // Agar User hai
+//               { guestId: guestId ? guestId : undefined } // Agar Guest hai
+//             ],
+//             operationalStatus: 'checkout_draft'
+//           },
+//         include: { inventoryItem: true } // Stock check karne ke liye inventory data chahiye
+//       });
+
+//       if (!orderItem) {
+//         return res.status(404).json({ success: false, message: "Item not found in cart" });
+//       }
+
+//       // 3. Check Stock (Inventory)
+//       if (orderItem.inventoryItem.stockQuantity < quantity) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           message: `Stock limit exceeded! Only ${orderItem.inventoryItem.stockQuantity} available.` 
+//         });
+//       }
+
+//       // 4. Update Item Price & Quantity
+//       const unitPrice = orderItem.unitPrice;
+//       await prisma.orderItem.update({
+//         where: { id: itemId },
+//         data: {
+//           quantity: parseFloat(quantity),
+//           totalLinePrice: parseFloat(quantity) * unitPrice
+//         }
+//       });
+
+//       // 5. Recalculate Total Order Price
+//       await calculateOrderTotal(orderItem.orderId);
+
+//       res.status(200).json({ success: true, message: "Cart updated" });
+
+//     } catch (error) {
+//       console.error("Update Cart Error:", error);
+//       res.status(500).json({ success: false, error: error.message });
+//     }
+//   },
+
 updateCartItem: async (req, res) => {
-    try {
-        const userId = req.user ? req.user.user_id : null;
-        const guestId = req.user ? null : req.guestId;
+  try {
+    const userId = req.user ? req.user.user_id : null;
+    const guestId = req.user ? null : req.guestId;
 
+    const { itemId, quantity } = req.body; // itemId yahan OrderItem ki ID hai (Inventory ki nahi)
 
-      const { itemId, quantity } = req.body; // itemId yahan OrderItem ki ID hai (Inventory ki nahi)
-
-      // 1. Validate Quantity
-      if (quantity < 1) {
-        return res.status(400).json({ success: false, message: "Quantity must be at least 1" });
-      }
-
-      // 2. Find Order Item & Verify Owner
-      const orderItem = await prisma.orderItem.findFirst({
-        where: {
-            OR: [
-              { user_id: userId ? userId : undefined }, // Agar User hai
-              { guestId: guestId ? guestId : undefined } // Agar Guest hai
-            ],
-            operationalStatus: 'checkout_draft'
-          },
-        include: { inventoryItem: true } // Stock check karne ke liye inventory data chahiye
-      });
-
-      if (!orderItem) {
-        return res.status(404).json({ success: false, message: "Item not found in cart" });
-      }
-
-      // 3. Check Stock (Inventory)
-      if (orderItem.inventoryItem.stockQuantity < quantity) {
-        return res.status(400).json({ 
-          success: false, 
-          message: `Stock limit exceeded! Only ${orderItem.inventoryItem.stockQuantity} available.` 
-        });
-      }
-
-      // 4. Update Item Price & Quantity
-      const unitPrice = orderItem.unitPrice;
-      await prisma.orderItem.update({
-        where: { id: itemId },
-        data: {
-          quantity: parseFloat(quantity),
-          totalLinePrice: parseFloat(quantity) * unitPrice
-        }
-      });
-
-      // 5. Recalculate Total Order Price
-      await calculateOrderTotal(orderItem.orderId);
-
-      res.status(200).json({ success: true, message: "Cart updated" });
-
-    } catch (error) {
-      console.error("Update Cart Error:", error);
-      res.status(500).json({ success: false, error: error.message });
+    // 1. Validate Quantity
+    if (quantity < 1) {
+      return res.status(400).json({ success: false, message: "Quantity must be at least 1" });
     }
-  },
+
+    // 2. Find Order Item & Verify Owner
+    const orderItem = await prisma.orderItem.findFirst({
+      where: {
+        id: itemId, // 👈 The Fix: Item ID match karo
+        order: {    // 👈 The Fix: Parent table mein relation check karo
+          OR: [
+            { user_id: userId ? userId : undefined },
+            { guestId: guestId ? guestId : undefined }
+          ],
+          operationalStatus: 'checkout_draft'
+        }
+      },
+      include: { inventoryItem: true } 
+    });
+
+    if (!orderItem) {
+      return res.status(404).json({ success: false, message: "Item not found in cart" });
+    }
+
+    // 3. Check Stock (Inventory)
+    // Note: Agar design_bundle hoga toh inventoryItem null ho sakta hai, isliye optional chaining (?.) laga di hai safety ke liye.
+    if (orderItem.inventoryItem && orderItem.inventoryItem.stockQuantity < quantity) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Stock limit exceeded! Only ${orderItem.inventoryItem.stockQuantity} available.` 
+      });
+    }
+
+    // 4. Update Item Price & Quantity
+    const unitPrice = orderItem.unitPrice;
+    await prisma.orderItem.update({
+      where: { id: itemId },
+      data: {
+        quantity: parseFloat(quantity),
+        totalLinePrice: parseFloat(quantity) * unitPrice
+      }
+    });
+
+    // 5. Recalculate Total Order Price
+    await calculateOrderTotal(orderItem.orderId);
+
+    res.status(200).json({ success: true, message: "Cart updated" });
+
+  } catch (error) {
+    console.error("Update Cart Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+},
 
   // 4. REMOVE ITEM FROM CART
   // 4. REMOVE ITEM FROM CART (Updated for Guest + User)

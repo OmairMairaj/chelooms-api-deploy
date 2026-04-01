@@ -243,7 +243,34 @@ model InventoryItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  fabricProfile   FabricProfile?
+
   @@map("inventory_items")
+}
+
+model FabricProfile {
+  id                       String        @id @default(uuid())
+  
+  // 🔗 Godown (Inventory) se link karne wali ID
+  inventoryItemId          String        @unique @map("inventory_item_id")
+  inventoryItem            InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  
+  // 🎨 Showroom (3D Tool) ka data
+  textureUrl               String        @db.Text
+  physicalRepeatWidthCm    Float
+  physicalRepeatHeightCm   Float
+  
+  // Pattern Origin JSON format mein { "x": 0.5, "y": 0.5, "description": "..." }
+  patternOrigin            Json          
+  
+  // Premium Pricing
+  isPremium                Boolean       @default(false)
+  premiumPrice             Float         @default(0.00)
+
+  createdAt                DateTime      @default(now()) @db.Timestamptz
+  updatedAt                DateTime      @updatedAt @db.Timestamptz
+
+  @@map("fabric_profiles")
 }
 
 model InventoryAuditLog {

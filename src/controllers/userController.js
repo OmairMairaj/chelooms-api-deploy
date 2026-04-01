@@ -3,22 +3,7 @@ const userService = require('../services/userService');
 const createUser = async (req, res) => {
     try {
         const { first_name, last_name, email, mobile_number, role } = req.body;
-console.log(req.body);
-        // 1. Basic Validation
-        if (!first_name || !email || !role) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "First Name, Email, and Role are required." 
-            });
-        }
 
-        // 2. Validate Role (Security: Admin koi invalid role na bhej de)
-        const validRoles = ['Administrator', 'Inventory_Manager', 'Registered']; // UserRole Enum
-        if (!validRoles.includes(role)) {
-            return res.status(400).json({ success: false, message: "Invalid Role selected." });
-        }
-
-        // 3. Call Service
         const newUser = await userService.createUserByAdmin({
             first_name, last_name, email, mobile_number, role
         });

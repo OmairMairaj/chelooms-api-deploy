@@ -62,11 +62,17 @@ router.patch('/items/:id/stock',
 
 router.post('/items', 
     protect, 
-    authorize('Administrator', 'Inventory_Manager') , 
+    authorize('Administrator', 'Inventory_Manager'), 
     
-    // NAYA WRAPPER: Ye humein exact error batayega!
+    // NAYA WRAPPER: Ab yeh 'images' aur 'textureImage' dono ko accept karega!
     function(req, res, next) {
-        upload.array('images', 5)(req, res, function(err) {
+        // 👇 YAHAN CHANGE KIYA HAI
+        const multiUpload = upload.fields([
+            { name: 'images', maxCount: 5 },        // Gallery images ke liye
+            { name: 'textureImage', maxCount: 1 }   // 3D Texture image ke liye
+        ]);
+
+        multiUpload(req, res, function(err) {
             if (err) {
                 console.error("🚨 CLOUDINARY/MULTER ERROR:", err);
                 return res.status(500).json({ 
@@ -84,9 +90,26 @@ router.post('/items',
 
 
 // Maqsad: Item ki basic details (Name, Price, SKU) update karna - (Stock nahi!)
+// PUT (Update) Route
 router.put('/items/:id', 
     protect, 
-    authorize('Administrator'), 
+    authorize('Administrator', 'Inventory_Manager'), 
+    
+    // NAYA WRAPPER: Update mein bhi images aur texture form-data se aayega!
+    function(req, res, next) {
+        const multiUpload = upload.fields([
+            { name: 'images', maxCount: 5 },       
+            { name: 'textureImage', maxCount: 1 }  
+        ]);
+
+        multiUpload(req, res, function(err) {
+            if (err) {
+                return res.status(500).json({ success: false, message: "Upload Failed!", details: err.message });
+            }
+            next(); 
+        });
+    },
+
     inventoryController.updateItemDetails
 );
 

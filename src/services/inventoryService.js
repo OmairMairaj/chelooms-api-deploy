@@ -29,8 +29,45 @@ class InventoryService {
   }
 
   // 3. Add New Inventory Item (With Initial Audit Log)
-  async createItem(data, adminId) {
+  // async createItem(data, adminId) {
+  //   return await prisma.$transaction(async (tx) => {
+  //     // Step A: Create Item
+  //     const newItem = await tx.inventoryItem.create({
+  //       data: {
+  //         categoryId: data.categoryId,
+  //         name: data.name,
+  //         description: data.description,
+  //         sku: data.sku,
+  //         metadata: data.metadata || {}, 
+  //         colorHex: data.colorHex,
+  //         colorName: data.colorName,
+  //         price: data.price,
+  //         images: data.images || {},
+  //         stockQuantity: data.stockQuantity,
+  //         lowStockThreshold: data.lowStockThreshold || 10,
+  //         isActive: true
+  //       }
+  //     });
+
+  //     // Step B: Create Initial Log
+  //     await tx.inventoryAuditLog.create({
+  //       data: {
+  //         itemId: newItem.id,
+  //         adminId: adminId, 
+  //         action: 'CREATE',
+  //         quantityChange: data.stockQuantity,
+  //         reason: 'Initial Stock Addition',
+  //         previousValues: {} 
+  //       }
+  //     });
+
+  //     return newItem;
+  //   });
+  // }
+
+  async createItem(data, adminId, fabricProfileData = null) { // 👈 Parameter add kiya
     return await prisma.$transaction(async (tx) => {
+      
       // Step A: Create Item
       const newItem = await tx.inventoryItem.create({
         data: {
@@ -60,6 +97,26 @@ class InventoryService {
           previousValues: {} 
         }
       });
+
+      // ==========================================
+      // 🚀 Step C: Create Fabric 3D Profile (Naya Addition)
+      // ==========================================
+      if (fabricProfileData) {
+        const newFabricProfile = await tx.fabricProfile.create({
+          data: {
+            inventoryItemId: newItem.id, // 👈 Godown wale item se link kar diya
+            textureUrl: fabricProfileData.textureUrl,
+            physicalRepeatWidthCm: fabricProfileData.physicalRepeatWidthCm,
+            physicalRepeatHeightCm: fabricProfileData.physicalRepeatHeightCm,
+            patternOrigin: fabricProfileData.patternOrigin,
+            isPremium: fabricProfileData.isPremium,
+            premiumPrice: fabricProfileData.premiumPrice
+          }
+        });
+
+        // Response mein dikhane ke liye object mein attach kar do
+        newItem.fabricProfile = newFabricProfile; 
+      }
 
       return newItem;
     });
@@ -100,7 +157,7 @@ class InventoryService {
   }
 
   // 5. Update Basic Details (Name, Price, Images) - Stock change nahi hoga isme
-  async updateItemDetails(itemId, updateData, adminId) {
+  async updateItemDetails(itemId, updateData, adminId, fabricProfileData = null) {
     return await prisma.$transaction(async (tx) => {
       const currentItem = await tx.inventoryItem.findUnique({ where: { id: itemId } });
       if (!currentItem) throw new Error("Item not found");
@@ -121,6 +178,31 @@ class InventoryService {
         where: { id: itemId },
         data: safeData
       });
+
+      if (fabricProfileData) {
+        await tx.fabricProfile.upsert({
+          where: { inventoryItemId: itemId },
+          update: {
+            // Agar pehle se profile hai, toh bas naye data se update kardo
+            textureUrl: fabricProfileData.textureUrl,
+            physicalRepeatWidthCm: fabricProfileData.physicalRepeatWidthCm,
+            physicalRepeatHeightCm: fabricProfileData.physicalRepeatHeightCm,
+            patternOrigin: fabricProfileData.patternOrigin,
+            isPremium: fabricProfileData.isPremium,
+            premiumPrice: fabricProfileData.premiumPrice
+          },
+          create: {
+            // Agar pehle profile NAHI tha, toh naya bana do
+            inventoryItemId: itemId,
+            textureUrl: fabricProfileData.textureUrl,
+            physicalRepeatWidthCm: fabricProfileData.physicalRepeatWidthCm,
+            physicalRepeatHeightCm: fabricProfileData.physicalRepeatHeightCm,
+            patternOrigin: fabricProfileData.patternOrigin,
+            isPremium: fabricProfileData.isPremium,
+            premiumPrice: fabricProfileData.premiumPrice
+          }
+        });
+      }
 
       // Audit log for basic update
       await tx.inventoryAuditLog.create({
@@ -201,7 +283,7 @@ class InventoryService {
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: { category: true } // Category name bhi sath layega
+        include: { category: true , fabricProfile: true} // Category name bhi sath layega
       }),
       prisma.inventoryItem.count({ where })
     ]);
@@ -223,6 +305,7 @@ class InventoryService {
       where: { id: itemId },
       include: { 
         category: true, // Category ka naam waghera layega
+        fabricProfile: true,
         auditLogs: {    // 🚀 Pro Feature: Aakhri 5 logs bhi sath layega
             orderBy: { createdAt: 'desc' },
             take: 5,
