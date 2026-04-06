@@ -442,3 +442,32 @@ model UserSizingProfile {
 
   @@map("user_sizing_profiles")
 }
+
+model Neckline {
+  necklineId    String   @id @default(uuid()) @map("neckline_id")
+  name          String
+  family        String
+  type          String
+  hasButtons    Boolean  @default(false)
+
+  isButton      Boolean  @default(false)
+  thread        Boolean  @default(false)
+  collarback    Boolean  @default(false)
+  
+  // PostgreSQL mein hum seedha String ka array bana sakte hain
+  images        String[] 
+  keywords      String[] 
+  tags          String[] 
+  
+  // Layers ka data complex hai, isliye isko as a JSON save karenge
+  layers        Json     
+
+  // Premium Pricing
+  isPremium     Boolean  @default(false) @map("premium")
+  premiumPrice  Float?   @map("premium_price")
+
+  createdAt     DateTime @default(now()) @db.Timestamptz
+  updatedAt     DateTime @updatedAt @db.Timestamptz
+
+  @@map("necklines")
+}

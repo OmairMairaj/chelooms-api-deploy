@@ -10,7 +10,9 @@ const sizingRoutes = require('./routes/sizingRoutes');
 const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const searchRoutes = require('./routes/searchRoutes');
+const necklineRoutes = require('./routes/DesignTool/necklineRoutes');
 const app = express();
+
 
 // --- Middlewares ---
 
@@ -39,7 +41,7 @@ app.use('/api/sizing', sizingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);  
 app.use('/api/search', searchRoutes);
-
+app.use('/api/design-tool/necklines', necklineRoutes);    
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
