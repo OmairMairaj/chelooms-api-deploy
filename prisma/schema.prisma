@@ -443,31 +443,94 @@ model UserSizingProfile {
   @@map("user_sizing_profiles")
 }
 
-model Neckline {
-  necklineId    String   @id @default(uuid()) @map("neckline_id")
-  name          String
-  family        String
-  type          String
-  hasButtons    Boolean  @default(false)
-
-  isButton      Boolean  @default(false)
-  thread        Boolean  @default(false)
-  collarback    Boolean  @default(false)
+// ==========================================
+// 🎨 DESIGN TOOL: NECKLINE CATEGORIES (Parent)
+// ==========================================
+model NecklineCategory {
+  categoryId    String           @id @default(uuid()) @map("category_id")
+  frontendId    String?          @unique @map("frontend_id") 
   
-  // PostgreSQL mein hum seedha String ka array bana sakte hain
-  images        String[] 
+  name          String           // e.g., "Ban"
+  family        String           // e.g., "Classic Ban"
+  image         String[]         // Cloudinary URL array
+  
+  options       NecklineOption[] // Relation to options
+
+  createdAt     DateTime         @default(now()) @db.Timestamptz
+  updatedAt     DateTime         @updatedAt @db.Timestamptz
+
+  @@map("neckline_categories")
+}
+
+// ==========================================
+// 🎨 DESIGN TOOL: NECKLINE OPTIONS (Child)
+// ==========================================
+model NecklineOption {
+  optionId      String           @id @default(uuid()) @map("option_id")
+  frontendId    String?          @map("frontend_id") 
+  
+  name          String           // e.g., "Straight Ban"
+  
+  // 🔘 Neckline Specific Toggles
+  hasButtons    Boolean          @default(false)
+  isButton      Boolean          @default(false)
+  thread        Boolean          @default(false)
+  collarback    Boolean          @default(false)
+  
+  // 🖼️ Media & Data
+  images        String[]         // Cloudinary URL array
   keywords      String[] 
   tags          String[] 
-  
-  // Layers ka data complex hai, isliye isko as a JSON save karenge
   layers        Json     
 
-  // Premium Pricing
-  isPremium     Boolean  @default(false) @map("premium")
-  premiumPrice  Float?   @map("premium_price")
+  // 💰 Pricing
+  isPremium     Boolean          @default(false) @map("premium")
+  premiumPrice  Float?           @map("premium_price")
 
-  createdAt     DateTime @default(now()) @db.Timestamptz
-  updatedAt     DateTime @updatedAt @db.Timestamptz
+  // 🔗 Relation: Yeh option kis category ka hissa hai?
+  categoryId    String           @map("category_id")
+  category      NecklineCategory @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
 
-  @@map("necklines")
+  createdAt     DateTime         @default(now()) @db.Timestamptz
+  updatedAt     DateTime         @updatedAt @db.Timestamptz
+
+  @@map("neckline_options")
+}
+
+
+// ==========================================
+// 🎨 DESIGN TOOL: SLEEVE CATEGORIES (Parent)
+// ==========================================
+model SleeveCategory {
+  categoryId    String         @id @default(uuid()) @map("category_id")
+  frontendId    String?        @unique @map("frontend_id") 
+  name          String
+  image         String[]       
+  options       SleeveOption[] 
+  createdAt     DateTime       @default(now()) @db.Timestamptz
+  updatedAt     DateTime       @updatedAt @db.Timestamptz
+
+  @@map("sleeve_categories")
+}
+
+// ==========================================
+// 🎨 DESIGN TOOL: SLEEVE OPTIONS (Child)
+// ==========================================
+model SleeveOption {
+  optionId      String         @id @default(uuid()) @map("option_id")
+  frontendId    String?        @map("frontend_id") 
+  name          String
+  hasButtons    Boolean        @default(false)
+  images        String[]       
+  keywords      String[] 
+  tags          String[] 
+  layers        Json     
+  isPremium     Boolean        @default(false) @map("premium")
+  premiumPrice  Float?         @map("premium_price")
+  categoryId    String         @map("category_id")
+  category      SleeveCategory @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
+  createdAt     DateTime       @default(now()) @db.Timestamptz
+  updatedAt     DateTime       @updatedAt @db.Timestamptz
+
+  @@map("sleeve_options")
 }

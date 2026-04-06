@@ -11,6 +11,7 @@ const userRoutes = require('./routes/userRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const necklineRoutes = require('./routes/DesignTool/necklineRoutes');
+const sleeveRoutes = require('./routes/DesignTool/sleeveRoutes');
 const app = express();
 
 
@@ -41,7 +42,8 @@ app.use('/api/sizing', sizingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);  
 app.use('/api/search', searchRoutes);
-app.use('/api/design-tool/necklines', necklineRoutes);    
+app.use('/api/design-tool/necklines', necklineRoutes);
+app.use('/api/design-tool/sleeves', sleeveRoutes);
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {

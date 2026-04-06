@@ -1,37 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const necklineController = require('../../controllers/DesignTool/necklineController');
-const { protect, authorize } = require('../../middlewares/authMiddleware'); // Path check kar lena apne project ke hisaab se
+const { protect, authorize } = require('../../middlewares/authMiddleware');
+const upload = require('../../middlewares/uploadMiddleware'); 
 
 // ==========================================
-// 🎨 DESIGN TOOL: NECKLINES APIs
+// 📁 CATEGORY ROUTES
 // ==========================================
+router.post('/category', protect, authorize('Administrator'), upload.fields([{ name: 'categoryImage', maxCount: 1 }]), necklineController.createCategory);
+router.get('/categories', necklineController.getAllCategories);
+router.put('/category/:id', protect, authorize('Administrator'), upload.fields([{ name: 'categoryImage', maxCount: 1 }]), necklineController.updateCategory);
 
-// Route: POST /api/design-tool/necklines
-// Maqsad: Admin naye neckline styles add karega
-router.post('/', 
-    protect, 
-    authorize('Administrator'), 
-    necklineController.createNeckline
-);
+// ==========================================
+// 👕 OPTION ROUTES
+// ==========================================
+router.post('/option', protect, authorize('Administrator'), upload.fields([{ name: 'images', maxCount: 1 }]), necklineController.createOption);
+router.put('/option/:id', protect, authorize('Administrator'), upload.fields([{ name: 'images', maxCount: 1 }]), necklineController.updateOption);
 
-// Route: GET /api/design-tool/necklines
-// Maqsad: Frontend App (Customer) aur Admin dono list dekh sakte hain
-// (Isko hum public rakh rahe hain taake customer tool load kar sake, agar protect karna ho toh add kar dena)
-router.get('/', 
-    necklineController.getAllNecklines
-);
-
-// Route: GET /api/design-tool/necklines/:id
-// Maqsad: Kisi ek neckline ki detail nikalna
-router.get('/:id', 
-    necklineController.getNecklineById
-);
-
-router.put('/:id', 
-    protect, 
-    authorize('Administrator'), 
-    necklineController.updateNeckline
-);
+// ==========================================
+// 🪄 MAGIC ROUTE (Grouped Data)
+// ==========================================
+router.get('/', necklineController.getAllNecklinesGrouped);
 
 module.exports = router;

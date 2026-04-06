@@ -1,0 +1,61 @@
+const express = require('express');
+const router = express.Router();
+const sleeveController = require('../../controllers/DesignTool/sleeveController');
+const { protect, authorize } = require('../../middlewares/authMiddleware');
+const upload = require('../../middlewares/uploadMiddleware');   
+
+// ==========================================
+// 📁 CATEGORY ROUTES
+// ==========================================
+
+// Create Category (Requires categoryImage)
+router.post('/category', 
+    protect, 
+    authorize('Administrator'), 
+    upload.fields([{ name: 'categoryImage', maxCount: 1 }]), 
+    sleeveController.createCategory
+);
+
+router.put('/category/:id', 
+    protect, 
+    authorize('Administrator'), 
+    upload.fields([{ name: 'categoryImage', maxCount: 1 }]), 
+    sleeveController.updateCategory
+);
+
+// Get All Categories (For dropdowns)
+router.get('/categories', 
+    sleeveController.getAllCategories
+);
+
+
+// ==========================================
+// 👕 OPTION ROUTES
+// ==========================================
+
+// Create Option (Requires images array/file)
+router.post('/option', 
+    protect, 
+    authorize('Administrator'), 
+    upload.fields([{ name: 'images', maxCount: 1 }]), 
+    sleeveController.createOption
+);
+
+
+router.put('/option/:id', 
+    protect, 
+    authorize('Administrator'), 
+    upload.fields([{ name: 'images', maxCount: 1 }]), 
+    sleeveController.updateOption
+);
+
+// ==========================================
+// 🪄 MAGIC ROUTE (Grouped Sleeves)
+// ==========================================
+
+// Main GET API (Returns full Parent-Child nested JSON)
+router.get('/', 
+    sleeveController.getAllSleevesGrouped
+);
+
+module.exports = router;

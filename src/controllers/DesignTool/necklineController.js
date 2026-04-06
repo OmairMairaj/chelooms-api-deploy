@@ -1,87 +1,133 @@
 const necklineService = require('../../services/DesignTool/necklineService');
 
 class NecklineController {
-  
-  // 1. Create Neckline
-  async createNeckline(req, res) {
+
+  // ==========================================
+  // 📁 CATEGORY APIs (Parent)
+  // ==========================================
+
+  // 1. Create Category
+  async createCategory(req, res) {
     try {
-      // Basic Validation
-      if (!req.body || !req.body.name || !req.body.layers) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "Incomplete Data! Name aur Layers zaroori hain." 
-        });
+      const payload = { ...req.body };
+      let categoryImageUrl = [];
+
+      // Cloudinary File Upload: req.files...path use kar rahe hain
+      if (req.files && req.files.categoryImage && req.files.categoryImage.length > 0) {
+        categoryImageUrl.push(req.files.categoryImage[0].path); 
       }
 
-      const newNeckline = await necklineService.createNeckline(req.body);
+      const finalData = { ...payload, image: categoryImageUrl };
+      const newCategory = await necklineService.createCategory(finalData);
       
-      res.status(201).json({ 
-        success: true, 
-        message: "Neckline Added Successfully!", 
-        data: newNeckline 
-      });
-
+      res.status(201).json({ success: true, message: "Neckline Category Created!", data: newCategory });
     } catch (error) {
-      console.error("Create Neckline Error:", error);
-      res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
+      console.error("Create Neckline Category Error:", error);
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  // 2. Get All Necklines
-  async getAllNecklines(req, res) {
+  // 2. Get All Categories
+  async getAllCategories(req, res) {
     try {
-      const necklines = await necklineService.getAllNecklines();
-      res.status(200).json({ 
-        success: true, 
-        data: necklines 
-      });
+      const categories = await necklineService.getAllCategories();
+      res.status(200).json({ success: true, data: categories });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  // 3. Get Single Neckline
-  async getNecklineById(req, res) {
+  // 3. Update Category
+  async updateCategory(req, res) {
     try {
       const { id } = req.params;
-      const neckline = await necklineService.getNecklineById(id);
+      const payload = { ...req.body };
       
-      res.status(200).json({ 
-        success: true, 
-        data: neckline 
-      });
+      if (req.files && req.files.categoryImage && req.files.categoryImage.length > 0) {
+        payload.image = [req.files.categoryImage[0].path]; 
+      }
+
+      const updatedCategory = await necklineService.updateCategory(id, payload);
+      res.status(200).json({ success: true, message: "Neckline Category Updated!", data: updatedCategory });
     } catch (error) {
-      res.status(404).json({ success: false, error: error.message });
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 
-  // 4. Update Neckline
-  async updateNeckline(req, res) {
+  // ==========================================
+  // 👕 OPTION APIs (Child)
+  // ==========================================
+
+  // 4. Create Option
+  async createOption(req, res) {
+    try {
+      const payload = { ...req.body };
+
+      // Strings ko wapis Array/JSON banate hain
+      if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
+      if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
+      if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
+      
+      // Booleans theek karna (Neckline specific toggles)
+      payload.hasButtons = payload.hasButtons === 'true';
+      payload.isButton = payload.isButton === 'true';
+      payload.thread = payload.thread === 'true';
+      payload.collarback = payload.collarback === 'true';
+      payload.premium = payload.premium === 'true';
+
+      let optionImagesUrl = [];
+      if (req.files && req.files.images && req.files.images.length > 0) {
+        optionImagesUrl.push(req.files.images[0].path);
+      }
+
+      const finalData = { ...payload, images: optionImagesUrl };
+      const newOption = await necklineService.createOption(finalData);
+      
+      res.status(201).json({ success: true, message: "Neckline Option Created!", data: newOption });
+    } catch (error) {
+      console.error("Create Neckline Option Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // 5. Update Option
+  async updateOption(req, res) {
     try {
       const { id } = req.params;
+      const payload = { ...req.body };
+
+      if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
+      if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
+      if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
       
-      if (!req.body || Object.keys(req.body).length === 0) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "Update data is empty!" 
-        });
+      if (payload.hasButtons !== undefined) payload.hasButtons = payload.hasButtons === 'true';
+      if (payload.isButton !== undefined) payload.isButton = payload.isButton === 'true';
+      if (payload.thread !== undefined) payload.thread = payload.thread === 'true';
+      if (payload.collarback !== undefined) payload.collarback = payload.collarback === 'true';
+      if (payload.premium !== undefined) payload.premium = payload.premium === 'true';
+
+      if (req.files && req.files.images && req.files.images.length > 0) {
+        payload.images = [req.files.images[0].path]; 
       }
 
-      const updatedNeckline = await necklineService.updateNeckline(id, req.body);
-      
-      res.status(200).json({
-        success: true,
-        message: "Neckline Updated Successfully!",
-        data: updatedNeckline
-      });
-
+      const updatedOption = await necklineService.updateOption(id, payload);
+      res.status(200).json({ success: true, message: "Neckline Option Updated!", data: updatedOption });
     } catch (error) {
-      console.error("Update Neckline Error:", error);
-      // Prisma error code P2025 means Record Not Found
-      if (error.code === 'P2025') {
-         return res.status(404).json({ success: false, error: "Neckline not found in database." });
-      }
-      res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
+  // 🪄 THE MAGIC API
+  // ==========================================
+
+  // 6. Get All Necklines Grouped
+  async getAllNecklinesGrouped(req, res) {
+    try {
+      const groupedNecklines = await necklineService.getAllNecklinesGrouped();
+      res.status(200).json({ success: true, data: groupedNecklines });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
     }
   }
 }

@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-class NecklineService {
+class SleeveService {
   
   // ==========================================
   // 📁 CATEGORY METHODS (Parent)
@@ -9,34 +9,31 @@ class NecklineService {
 
   // 1. Create a new Category
   async createCategory(data) {
-    return await prisma.necklineCategory.create({
+    return await prisma.sleeveCategory.create({
       data: {
-        frontendId: data.frontendId || `nk-${data.name.toLowerCase().replace(/\s+/g, '-')}`,
+        frontendId: data.frontendId || `cat-${data.name.toLowerCase().replace(/\s+/g, '-')}`,
         name: data.name,
-        family: data.family, // 👈 Nayi family field
-        image: data.image || [] 
+        image: data.image || [] // Array of Cloudinary URLs
       }
     });
   }
 
-  // 2. Get All Categories (Dropdown ke liye)
-  async getAllCategories() {
-    return await prisma.necklineCategory.findMany({
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
-  // 3. Update a Category
   async updateCategory(categoryId, updateData) {
     const dataToUpdate = {};
     if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
     if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
-    if (updateData.family !== undefined) dataToUpdate.family = updateData.family;
     if (updateData.image !== undefined) dataToUpdate.image = updateData.image;
 
-    return await prisma.necklineCategory.update({
+    return await prisma.sleeveCategory.update({
       where: { categoryId: categoryId },
       data: dataToUpdate
+    });
+  }
+
+  // 2. Get All Categories (Sirf Dropdown ke liye form mein)
+  async getAllCategories() {
+    return await prisma.sleeveCategory.findMany({
+      orderBy: { createdAt: 'desc' }
     });
   }
 
@@ -44,21 +41,16 @@ class NecklineService {
   // 👕 OPTION METHODS (Child)
   // ==========================================
 
-  // 4. Create a new Option
+  // 3. Create a new Option
   async createOption(data) {
-    return await prisma.necklineOption.create({
+    return await prisma.sleeveOption.create({
       data: {
-        categoryId: data.categoryId, 
+        categoryId: data.categoryId, // Dropdown se aayegi
         frontendId: data.frontendId || null,
         name: data.name,
-        
-        // Neckline specific toggles
         hasButtons: data.hasButtons || false,
-        isButton: data.isButton || false,
-        thread: data.thread || false,
-        collarback: data.collarback || false,
         
-        images: data.images || [], 
+        images: data.images || [], // Array of Cloudinary URLs
         keywords: data.keywords || [],
         tags: data.tags || [],
         layers: data.layers || [], 
@@ -69,18 +61,13 @@ class NecklineService {
     });
   }
 
-  // 5. Update an Option
+  // 4. Update an Option
   async updateOption(optionId, updateData) {
     const dataToUpdate = {};
     
     if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
     if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
-    
-    // Toggles update
     if (updateData.hasButtons !== undefined) dataToUpdate.hasButtons = updateData.hasButtons;
-    if (updateData.isButton !== undefined) dataToUpdate.isButton = updateData.isButton;
-    if (updateData.thread !== undefined) dataToUpdate.thread = updateData.thread;
-    if (updateData.collarback !== undefined) dataToUpdate.collarback = updateData.collarback;
     
     if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
     if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
@@ -92,7 +79,7 @@ class NecklineService {
       dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;
     }
 
-    return await prisma.necklineOption.update({
+    return await prisma.sleeveOption.update({
       where: { optionId: optionId },
       data: dataToUpdate
     });
@@ -102,32 +89,26 @@ class NecklineService {
   // 🪄 THE MAGIC GETTER (For Frontend List)
   // ==========================================
 
-  // 6. Get All Necklines Grouped
-  async getAllNecklinesGrouped() {
-    const categories = await prisma.necklineCategory.findMany({
+  // 5. Get All Sleeves Grouped (Frontend ki marzi ka format)
+  async getAllSleevesGrouped() {
+    // Prisma yahan automatically Dono tables ko JOIN kar dega
+    const categories = await prisma.sleeveCategory.findMany({
       include: {
-        options: true // Child data sath laye
+        options: true // 🪄 Yeh hai asal jadoo! Child data sath le aao
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    // Frontend ke JSON format mein map karna
+    // Frontend ke exact JSON format mein map karna
     return categories.map(cat => ({
       id: cat.frontendId,
       name: cat.name,
-      family: cat.family,
       image: cat.image,
       options: cat.options.map(opt => ({
         dbId: opt.optionId,
         id: opt.frontendId,
         name: opt.name,
-        
-        // Neckline toggles
         hasButtons: opt.hasButtons,
-        isButton: opt.isButton,
-        thread: opt.thread,
-        collarback: opt.collarback,
-        
         images: opt.images,
         keywords: opt.keywords,
         tags: opt.tags,
@@ -139,4 +120,4 @@ class NecklineService {
   }
 }
 
-module.exports = new NecklineService();
+module.exports = new SleeveService();
