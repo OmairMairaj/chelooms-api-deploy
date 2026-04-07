@@ -113,6 +113,7 @@ class NecklineService {
 
     // Frontend ke JSON format mein map karna
     return categories.map(cat => ({
+      dbId: cat.categoryId,
       id: cat.frontendId,
       name: cat.name,
       family: cat.family,
