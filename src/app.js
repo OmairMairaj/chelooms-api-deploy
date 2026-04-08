@@ -12,6 +12,8 @@ const orderRoutes = require('./routes/orderRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const necklineRoutes = require('./routes/DesignTool/necklineRoutes');
 const sleeveRoutes = require('./routes/DesignTool/sleeveRoutes');
+const hemlineRoutes = require('./routes/DesignTool/hemlineRoutes');
+const sideSlitRoutes = require('./routes/DesignTool/sideSlitRoutes');
 const app = express();
 
 
@@ -44,6 +46,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/design-tool/necklines', necklineRoutes);
 app.use('/api/design-tool/sleeves', sleeveRoutes);
+app.use('/api/design-tool/hemlines', hemlineRoutes);
+app.use('/api/design-tool/side-slits', sideSlitRoutes);
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {

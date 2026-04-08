@@ -534,3 +534,76 @@ model SleeveOption {
 
   @@map("sleeve_options")
 }
+
+
+// ==========================================
+// 🎨 DESIGN TOOL: HEMLINE CATEGORIES (Parent)
+// ==========================================
+model HemlineCategory {
+  categoryId    String          @id @default(uuid()) @map("category_id")
+  frontendId    String?         @unique @map("frontend_id") 
+  
+  name          String          // e.g., "Short"
+  image         String[]        // Cloudinary URL array (Category Thumbnail)
+  
+  options       HemlineOption[] // Relation to options
+
+  createdAt     DateTime        @default(now()) @db.Timestamptz
+  updatedAt     DateTime        @updatedAt @db.Timestamptz
+
+  @@map("hemline_categories")
+}
+
+// ==========================================
+// 🎨 DESIGN TOOL: HEMLINE OPTIONS (Child)
+// ==========================================
+model HemlineOption {
+  optionId      String          @id @default(uuid()) @map("option_id")
+  frontendId    String?         @map("frontend_id") 
+  
+  name          String          // e.g., "Round"
+  shapeTag      String?         // e.g., "round", "square"
+  
+  // 🖼️ Media & Data (Images & Keywords hat gaye hain)
+  tags          String[] 
+  layers        Json            // Isme jo SVGs aayengi wo Cloudinary se hongi
+  
+  // 💰 Pricing
+  isPremium     Boolean         @default(false) @map("premium")
+  premiumPrice  Float?          @map("premium_price")
+
+  // 🔗 Relation: Yeh option kis category ka hissa hai?
+  categoryId    String          @map("category_id")
+  category      HemlineCategory @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
+
+  createdAt     DateTime        @default(now()) @db.Timestamptz
+  updatedAt     DateTime        @updatedAt @db.Timestamptz
+
+  @@map("hemline_options")
+}
+
+
+// ==========================================
+// 🎨 DESIGN TOOL: SIDE SLITS (Single Table)
+// ==========================================
+model SideSlit {
+  sideSlitId            String    @id @default(uuid()) @map("side_slit_id")
+  frontendId            String?   @unique @map("frontend_id") 
+  
+  name                  String    // e.g., "Regular"
+  
+  // 🖼️ Media & Data fields (Purani cheezein barqarar hain)
+  image                 String[]  // Main thumbnail (array for consistency)
+  images                String[]  // Additional option images
+  keywords              String[]  
+  tags                  String[]  
+
+  // ✂️ Side Slit Specific Fields
+  allowedHemlineShapes  String[]  // e.g., ["square", "round"]
+  cutouts               Json      // 🐙 The nested magic JSON for SVGs
+  
+  createdAt             DateTime  @default(now()) @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @db.Timestamptz
+
+  @@map("side_slits")
+}

@@ -16,8 +16,9 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'project_jute_inventory', // Cloudinary mein is folder mein jayengi images
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'], // Sirf images allow karo
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp','svg'], // Sirf images allow karo
     transformation: [{ width: 800, crop: 'limit' }], // Auto-resize (Optimization)
+    resource_type: 'auto'
   },
 });
 
