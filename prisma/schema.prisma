@@ -607,3 +607,56 @@ model SideSlit {
 
   @@map("side_slits")
 }
+
+
+// ==========================================
+// ✨ DESIGN TOOL: EMBELLISHMENTS (Categories & Options)
+// ==========================================
+
+model EmbellishmentCategory {
+  categoryId  String                @id @default(uuid()) @map("category_id")
+  frontendId  String?               @unique @map("frontend_id") // e.g., emb-plain
+  
+  name        String                // e.g., "Plain (No Embroidery)"
+  image       String[]              // Main thumbnail
+  
+  // Relation to Options
+  options     EmbellishmentOption[]
+  
+  createdAt   DateTime              @default(now()) @db.Timestamptz
+  updatedAt   DateTime              @updatedAt @db.Timestamptz
+
+  @@map("embellishment_categories")
+}
+
+model EmbellishmentOption {
+  optionId          String                @id @default(uuid()) @map("option_id")
+  frontendId        String?               @unique @map("frontend_id") // e.g., emb-elegance-floral
+  
+  // Foreign Key
+  categoryId        String                @map("category_id")
+  category          EmbellishmentCategory @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
+  
+  name              String                // e.g., "Floral Border"
+  images            String[]              // Additional gallery images
+  
+  premium           Boolean               @default(false)
+  premiumPrice      Float?                @map("premium_price")
+  
+  keywords          String[]
+  tags              String[]
+  
+  // The Allowed Arrays
+  allowedNecklines  String[]
+  allowedHemlines   String[]
+  allowedSleeves    String[]
+  
+  // JSON Fields for Complex Data
+  colors            Json                  // [{ id, name, hex }]
+  overlays          Json                  // 🐙 The nested magic JSON for SVG layers & zIndex
+  
+  createdAt         DateTime              @default(now()) @db.Timestamptz
+  updatedAt         DateTime              @updatedAt @db.Timestamptz
+
+  @@map("embellishment_options")
+}

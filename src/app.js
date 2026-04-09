@@ -14,6 +14,7 @@ const necklineRoutes = require('./routes/DesignTool/necklineRoutes');
 const sleeveRoutes = require('./routes/DesignTool/sleeveRoutes');
 const hemlineRoutes = require('./routes/DesignTool/hemlineRoutes');
 const sideSlitRoutes = require('./routes/DesignTool/sideSlitRoutes');
+const embellishmentRoutes = require('./routes/DesignTool/embellishmentRoutes');
 const app = express();
 
 
@@ -48,6 +49,7 @@ app.use('/api/design-tool/necklines', necklineRoutes);
 app.use('/api/design-tool/sleeves', sleeveRoutes);
 app.use('/api/design-tool/hemlines', hemlineRoutes);
 app.use('/api/design-tool/side-slits', sideSlitRoutes);
+app.use('/api/design-tool/embellishments', embellishmentRoutes);
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
