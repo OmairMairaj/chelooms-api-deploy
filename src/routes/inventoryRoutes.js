@@ -27,17 +27,7 @@ router.get('/categories',
     inventoryController.getCategories
 );
 
-// =================================================================
-// 2. ITEM MANAGEMENT (Fabrics & Embellishments)
-// =================================================================
 
-// Route: POST /api/inventory/items
-// Maqsad: Naya maal (Item) add karna with Metadata
-// router.post('/items', 
-//     protect, 
-//     authorize('Administrator', 'Inventory_Manager'), 
-//     inventoryController.addItem
-// );
 
 // Route: GET /api/inventory/items
 // Maqsad: Admin panel ki list view (With Filters)
@@ -65,12 +55,29 @@ router.post('/items',
     authorize('Administrator', 'Inventory_Manager'), 
     
     // NAYA WRAPPER: Ab yeh 'images' aur 'textureImage' dono ko accept karega!
+    // function(req, res, next) {
+    //     // 👇 YAHAN CHANGE KIYA HAI
+    //     const multiUpload = upload.fields([
+    //         { name: 'images', maxCount: 5 },        // Gallery images ke liye
+    //         { name: 'textureImage', maxCount: 1 }   // 3D Texture image ke liye
+    //     ]);
+
+    //     multiUpload(req, res, function(err) {
+    //         if (err) {
+    //             console.error("🚨 CLOUDINARY/MULTER ERROR:", err);
+    //             return res.status(500).json({ 
+    //                 success: false, 
+    //                 message: "Image Upload Failed!", 
+    //                 details: err.message 
+    //             });
+    //         }
+    //         next(); // Agar upload successful hai, to Controller pe jao
+    //     });
+    // },
+
     function(req, res, next) {
-        // 👇 YAHAN CHANGE KIYA HAI
-        const multiUpload = upload.fields([
-            { name: 'images', maxCount: 5 },        // Gallery images ke liye
-            { name: 'textureImage', maxCount: 1 }   // 3D Texture image ke liye
-        ]);
+        // 👇 YAHAN CHANGE KIYA HAI: upload.fields ki jagah upload.any()
+        const multiUpload = upload.any(); 
 
         multiUpload(req, res, function(err) {
             if (err) {
@@ -81,7 +88,7 @@ router.post('/items',
                     details: err.message 
                 });
             }
-            next(); // Agar upload successful hai, to Controller pe jao
+            next(); 
         });
     },
 
@@ -96,11 +103,22 @@ router.put('/items/:id',
     authorize('Administrator', 'Inventory_Manager'), 
     
     // NAYA WRAPPER: Update mein bhi images aur texture form-data se aayega!
+    // function(req, res, next) {
+    //     const multiUpload = upload.fields([
+    //         { name: 'images', maxCount: 5 },       
+    //         { name: 'textureImage', maxCount: 1 }  
+    //     ]);
+
+    //     multiUpload(req, res, function(err) {
+    //         if (err) {
+    //             return res.status(500).json({ success: false, message: "Upload Failed!", details: err.message });
+    //         }
+    //         next(); 
+    //     });
+    // },
     function(req, res, next) {
-        const multiUpload = upload.fields([
-            { name: 'images', maxCount: 5 },       
-            { name: 'textureImage', maxCount: 1 }  
-        ]);
+        // 👇 YAHAN BHI CHANGE KIYA HAI
+        const multiUpload = upload.any();
 
         multiUpload(req, res, function(err) {
             if (err) {
@@ -128,5 +146,7 @@ router.get('/items/:id',
     authorize('Administrator', 'Inventory_Manager'), 
     inventoryController.getItemById
 );  
+
+router.get('/dropdown', inventoryController.getInventoryDropdown);
 
 module.exports = router;

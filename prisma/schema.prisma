@@ -245,30 +245,37 @@ model InventoryItem {
 
   fabricProfile   FabricProfile?
 
+  embellishmentOptions EmbellishmentOption[]
+
   @@map("inventory_items")
 }
 
 model FabricProfile {
-  id                       String        @id @default(uuid())
+  id                     String        @id @default(uuid())
   
-  // 🔗 Godown (Inventory) se link karne wali ID
-  inventoryItemId          String        @unique @map("inventory_item_id")
-  inventoryItem            InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  inventoryItemId        String        @unique @map("inventory_item_id")
+  inventoryItem          InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
   
   // 🎨 Showroom (3D Tool) ka data
-  textureUrl               String        @db.Text
-  physicalRepeatWidthCm    Float
-  physicalRepeatHeightCm   Float
+  textureUrl             String        @db.Text
+  physicalRepeatWidthCm  Float
+  physicalRepeatHeightCm Float
   
-  // Pattern Origin JSON format mein { "x": 0.5, "y": 0.5, "description": "..." }
-  patternOrigin            Json          
+  patternOrigin          Json          
   
-  // Premium Pricing
-  isPremium                Boolean       @default(false)
-  premiumPrice             Float         @default(0.00)
+  // =====================================
+  // 🚀 NAYE ADDITIONS FOR FRONTEND JSON
+  // =====================================
+  fabricType             String?       @map("fabric_type") // For "3 piece" etc.
+  colors                 Json?         // { "primary": "#...", "accent": "#..." }
+  textureParts           Json?         @map("texture_parts") // { "sleeves": { "texture_url": "...", ... } }
+  // =====================================
+  
+  isPremium              Boolean       @default(false)
+  premiumPrice           Float         @default(0.00)
 
-  createdAt                DateTime      @default(now()) @db.Timestamptz
-  updatedAt                DateTime      @updatedAt @db.Timestamptz
+  createdAt              DateTime      @default(now()) @db.Timestamptz
+  updatedAt              DateTime      @updatedAt @db.Timestamptz
 
   @@map("fabric_profiles")
 }
@@ -636,6 +643,10 @@ model EmbellishmentOption {
   // Foreign Key
   categoryId        String                @map("category_id")
   category          EmbellishmentCategory @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
+
+  // 🔗 Godown-to-Showroom Link
+  inventoryItemId   String?        @map("inventory_item_id")
+  inventoryItem     InventoryItem? @relation(fields: [inventoryItemId], references: [id])
   
   name              String                // e.g., "Floral Border"
   images            String[]              // Additional gallery images
@@ -659,4 +670,27 @@ model EmbellishmentOption {
   updatedAt         DateTime              @updatedAt @db.Timestamptz
 
   @@map("embellishment_options")
+}
+
+
+// ==========================================
+// 🔘 DESIGN TOOL: BUTTON OPTIONS (Single Table)
+// ==========================================
+
+model ButtonOption {
+  buttonId      String    @id @default(uuid()) @map("button_id")
+  frontendId    String?   @unique @map("frontend_id") // e.g., btn-plastic
+  
+  name          String    // e.g., "Plastic", "Metal", "Wood"
+  images        String[]  // Button preview/thumbnail images
+  
+  premium       Boolean   @default(false)
+  premiumPrice  Float?    @map("premium_price") // Only applicable if premium is true
+  
+  colors        Json      // 🎨 JSON Array: [{ id: "plt-black", name: "Black", hex: "#1a1a1a" }]
+  
+  createdAt     DateTime  @default(now()) @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @db.Timestamptz
+
+  @@map("button_options")
 }

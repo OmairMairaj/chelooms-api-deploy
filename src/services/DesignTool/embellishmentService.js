@@ -45,6 +45,7 @@ class EmbellishmentService {
       data: {
         categoryId: data.categoryId,
         frontendId: data.frontendId || `emb-opt-${data.name.toLowerCase().replace(/\s+/g, '-')}`,
+        inventoryItemId: data.inventoryItemId || null,
         name: data.name,
         images: data.images || [],
         premium: data.premium || false,
@@ -67,7 +68,7 @@ class EmbellishmentService {
     const fields = [
       'frontendId', 'name', 'images', 'premium', 'premiumPrice', 
       'keywords', 'tags', 'allowedNecklines', 'allowedHemlines', 
-      'allowedSleeves', 'colors', 'overlays'
+      'allowedSleeves', 'colors', 'overlays', 'inventoryItemId'
     ];
 
     fields.forEach(field => {
@@ -115,7 +116,8 @@ class EmbellishmentService {
         allowedHemlines: opt.allowedHemlines,
         allowedSleeves: opt.allowedSleeves,
         colors: opt.colors,
-        overlays: opt.overlays
+        overlays: opt.overlays,
+        inventoryItemId: opt.inventoryItemId
       }))
     }));
   }

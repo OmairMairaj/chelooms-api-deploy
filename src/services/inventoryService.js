@@ -28,42 +28,7 @@ class InventoryService {
     return await prisma.inventoryCategory.findMany();
   }
 
-  // 3. Add New Inventory Item (With Initial Audit Log)
-  // async createItem(data, adminId) {
-  //   return await prisma.$transaction(async (tx) => {
-  //     // Step A: Create Item
-  //     const newItem = await tx.inventoryItem.create({
-  //       data: {
-  //         categoryId: data.categoryId,
-  //         name: data.name,
-  //         description: data.description,
-  //         sku: data.sku,
-  //         metadata: data.metadata || {}, 
-  //         colorHex: data.colorHex,
-  //         colorName: data.colorName,
-  //         price: data.price,
-  //         images: data.images || {},
-  //         stockQuantity: data.stockQuantity,
-  //         lowStockThreshold: data.lowStockThreshold || 10,
-  //         isActive: true
-  //       }
-  //     });
 
-  //     // Step B: Create Initial Log
-  //     await tx.inventoryAuditLog.create({
-  //       data: {
-  //         itemId: newItem.id,
-  //         adminId: adminId, 
-  //         action: 'CREATE',
-  //         quantityChange: data.stockQuantity,
-  //         reason: 'Initial Stock Addition',
-  //         previousValues: {} 
-  //       }
-  //     });
-
-  //     return newItem;
-  //   });
-  // }
 
   async createItem(data, adminId, fabricProfileData = null) { // 👈 Parameter add kiya
     return await prisma.$transaction(async (tx) => {
@@ -109,6 +74,9 @@ class InventoryService {
             physicalRepeatWidthCm: fabricProfileData.physicalRepeatWidthCm,
             physicalRepeatHeightCm: fabricProfileData.physicalRepeatHeightCm,
             patternOrigin: fabricProfileData.patternOrigin,
+            fabricType: fabricProfileData.fabricType || null,
+            colors: fabricProfileData.colors || null,
+            textureParts: fabricProfileData.textureParts || null,
             isPremium: fabricProfileData.isPremium,
             premiumPrice: fabricProfileData.premiumPrice
           }
@@ -188,6 +156,9 @@ class InventoryService {
             physicalRepeatWidthCm: fabricProfileData.physicalRepeatWidthCm,
             physicalRepeatHeightCm: fabricProfileData.physicalRepeatHeightCm,
             patternOrigin: fabricProfileData.patternOrigin,
+            fabricType: fabricProfileData.fabricType !== undefined ? fabricProfileData.fabricType : undefined,
+            colors: fabricProfileData.colors !== undefined ? fabricProfileData.colors : undefined,
+            textureParts: fabricProfileData.textureParts !== undefined ? fabricProfileData.textureParts : undefined,
             isPremium: fabricProfileData.isPremium,
             premiumPrice: fabricProfileData.premiumPrice
           },
@@ -323,6 +294,26 @@ class InventoryService {
     }
 
     return item;
+  }
+
+  // 🚀 Nayi API: Sirf Dropdown ke liye (Lightweight)
+  async getInventoryDropdown(type) {
+    // type = 'EMBELLISHMENT' ya 'FABRIC'
+    return await prisma.inventoryItem.findMany({
+      where: {
+        isActive: true,
+        category: {
+          type: type // Sirf specific type ke items layega
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        stockQuantity: true // Taa ke dropdown mein (Out of stock) bhi dikha sakein
+      },
+      orderBy: { name: 'asc' }
+    });
   }
   
 }
