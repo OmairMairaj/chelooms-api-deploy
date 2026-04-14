@@ -1,0 +1,29 @@
+const express = require('express');
+const router = express.Router();
+const productController = require('../../controllers/DesignTool/productController');
+const { protect, authorize } = require('../../middlewares/authMiddleware');
+const upload = require('../../middlewares/uploadMiddleware');
+
+// POST /api/products
+// Multer ka upload.any() use kiya hai taake images array asani se aa saken
+router.post('/', 
+    protect, 
+    authorize('Administrator'), 
+    
+    function(req, res, next) {
+        const multiUpload = upload.any();
+        multiUpload(req, res, function(err) {
+            if (err) {
+                return res.status(500).json({ success: false, message: "Upload Failed", details: err.message });
+            }
+            next();
+        });
+    }, 
+    
+    productController.createProduct
+);
+
+// GET /api/products/:id/canvas - E-com Frontend Master JSON API
+router.get('/:id/canvas', productController.getProductForCanvas);
+
+module.exports = router;

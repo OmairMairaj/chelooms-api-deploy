@@ -694,3 +694,46 @@ model ButtonOption {
 
   @@map("button_options")
 }
+
+
+// ==================================================
+// 🛒 E-COMMERCE: MASTER PRODUCT MODULE
+// ==================================================
+
+model Product {
+  id                            String   @id @default(uuid())
+  name                          String
+  category                      String   // e.g., "kameez", "kurta"
+  pieceType                     String   @map("piece_type") // e.g., "3 piece"
+  
+  // Pricing & Status
+  baseStitchingPrice            Float    @map("base_stitching_price")
+  status                        String   @default("Draft") // "Draft" ya "Publish"
+  
+  // Media & Meta
+  images                        Json?    @default("[]") // Array of image URLs
+  thumbnails                    Json?    @default("[]")
+  seasonTags                    Json?    @map("season_tags") @default("[]") // e.g., ["Summer", "Eid"]
+
+  // ==================================================
+  // 🎛️ ALLOWED CUSTOMIZATION OPTIONS (Admin Selected)
+  // ==================================================
+  // Yahan hum sirf child option IDs save kar rahe hain (String arrays)
+  allowedFabricIds              String[] @map("allowed_fabric_ids")
+  allowedNecklineOptionIds      String[] @map("allowed_neckline_option_ids")
+  allowedSleeveOptionIds        String[] @map("allowed_sleeve_option_ids")
+  allowedHemlineOptionIds       String[] @map("allowed_hemline_option_ids")
+  allowedSideSlitIds            String[] @map("allowed_side_slit_ids")
+  allowedEmbellishmentOptionIds String[] @map("allowed_embellishment_option_ids")
+
+  // ==================================================
+  // 🎨 DEFAULT DESIGN (Kameez pehli dafa kaisi dikhegi)
+  // ==================================================
+  // JSON format: { fabric: { option_1_id: "..." }, neckline: { ... } }
+  defaultDesign                 Json     @map("default_design")
+
+  createdAt                     DateTime @default(now()) @db.Timestamptz
+  updatedAt                     DateTime @updatedAt @db.Timestamptz
+
+  @@map("products")
+}
