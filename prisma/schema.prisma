@@ -703,7 +703,8 @@ model ButtonOption {
 model Product {
   id                            String   @id @default(uuid())
   name                          String
-  category                      String   // e.g., "kameez", "kurta"
+  productCategoryId      String   @map("product_category_id")
+  productCategory        ProductCategory @relation(fields: [productCategoryId], references: [productCategoryId])
   pieceType                     String   @map("piece_type") // e.g., "3 piece"
   
   // Pricing & Status
@@ -736,4 +737,23 @@ model Product {
   updatedAt                     DateTime @updatedAt @db.Timestamptz
 
   @@map("products")
+}
+
+
+// ==================================================
+// 🗂️ MASTER PRODUCT CATEGORIES
+// ==================================================
+model ProductCategory {
+  productCategoryId String    @id @default(uuid()) @map("product_category_id")
+  name              String    @unique // e.g., "Kameez", "Kurta", "Trouser"
+  description       String?
+  isActive          Boolean   @default(true)
+  
+  // Relation to Products
+  products          Product[] 
+
+  createdAt         DateTime  @default(now()) @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @db.Timestamptz
+
+  @@map("product_categories")
 }

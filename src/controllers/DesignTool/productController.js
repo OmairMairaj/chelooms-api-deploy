@@ -101,6 +101,25 @@ class ProductController {
     }
   }
 
+  // GET /api/products/form-options
+  async getAdminFormOptions(req, res) {
+    try {
+      const optionsData = await productService.getAdminFormOptions();
+
+      res.status(200).json({
+        success: true,
+        data: optionsData
+      });
+    } catch (error) {
+      console.error("Admin Form Options Error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to load form options", 
+        error: error.message 
+      });
+    }
+  }
+
 }
 
 module.exports = new ProductController();

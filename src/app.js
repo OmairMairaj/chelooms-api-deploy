@@ -17,6 +17,7 @@ const sideSlitRoutes = require('./routes/DesignTool/sideSlitRoutes');
 const embellishmentRoutes = require('./routes/DesignTool/embellishmentRoutes');
 const buttonOptionRoutes = require('./routes/DesignTool/buttonOptionRoutes');
 const productRoutes = require('./routes/DesignTool/productRoutes');
+const productCategoryRoutes = require('./routes/DesignTool/productCategoryRoutes');
 const app = express();
 
 
@@ -54,6 +55,7 @@ app.use('/api/design-tool/side-slits', sideSlitRoutes);
 app.use('/api/design-tool/embellishments', embellishmentRoutes);
 app.use('/api/design-tool/button-options', buttonOptionRoutes);
 app.use('/api/design-tool/products', productRoutes);
+app.use('/api/design-tool/product-categories', productCategoryRoutes);
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {

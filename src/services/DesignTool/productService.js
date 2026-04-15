@@ -296,6 +296,66 @@ class ProductService {
       default_design: product.defaultDesign
     };
   }
+
+  // ==================================================
+  // 🛠️ ADMIN MASTER FORM OPTIONS API
+  // ==================================================
+  async getAdminFormOptions() {
+    // 1. 👗 Fetch Fabrics (Wo inventory items jinki Fabric Profile mojood hai)
+    // 1. 👗 Fetch Fabrics (Wo inventory items jinki Fabric Profile mojood hai)
+    const fabricProfiles = await prisma.fabricProfile.findMany({
+      include: { inventoryItem: true }
+    });
+    
+    // 🔥 FIX: Sirf ek category banani hai, aur saare fabrics uske 'options' array mein dalne hain
+    const fabrics = [{
+      categoryId: "fabrics-main",
+      name: "All Fabrics",
+      options: fabricProfiles.map(fp => ({
+        optionId: fp.inventoryItem.id, // Yeh child ID hai
+        name: fp.inventoryItem?.name || "Unknown Fabric",
+        image: fp.textureUrl
+      }))
+    }];
+
+    // 2. 👚 Fetch Necklines (Category include Options)
+    const necklines = await prisma.necklineCategory.findMany({
+      include: { options: true }
+    });
+
+    // 3. 👘 Fetch Sleeves (Category include Options)
+    const sleeves = await prisma.sleeveCategory.findMany({
+      include: { options: true }
+    });
+
+    // 4. 👗 Fetch Hemlines (Category include Options)
+    const hemlines = await prisma.hemlineCategory.findMany({
+      include: { options: true }
+    });
+
+    // 5. ✂️ Fetch Side Slits (Inki category nahi hoti, isliye direct UI format banayenge)
+    const rawSideSlits = await prisma.sideSlit.findMany();
+    const sideSlits = [{
+      categoryId: "side-slits-main",
+      name: "All Side Slits",
+      options: rawSideSlits
+    }];
+
+    // 6. ✨ Fetch Embellishments (Category include Options)
+    const embellishments = await prisma.embellishmentCategory.findMany({
+      include: { options: true }
+    });
+
+    // Return the Master Payload
+    return {
+      fabrics, // Isko bhi nested format mein diya hai taake Frontend ka logic same rahay
+      necklines,
+      sleeves,
+      hemlines,
+      sideSlits,
+      embellishments
+    };
+  }
 }
 
 module.exports = new ProductService();

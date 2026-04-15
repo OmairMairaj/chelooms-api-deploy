@@ -4,6 +4,9 @@ const productController = require('../../controllers/DesignTool/productControlle
 const { protect, authorize } = require('../../middlewares/authMiddleware');
 const upload = require('../../middlewares/uploadMiddleware');
 
+
+
+router.get('/form-options', protect, authorize('Administrator'), productController.getAdminFormOptions);
 // POST /api/products
 // Multer ka upload.any() use kiya hai taake images array asani se aa saken
 router.post('/', 
