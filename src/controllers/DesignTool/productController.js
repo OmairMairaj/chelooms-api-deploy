@@ -144,6 +144,27 @@ class ProductController {
     }
   }
 
+  // GET /api/products/grouped/categories
+  async getAllGroupedProducts(req, res) {
+    try {
+      const groupedData = await productService.getAllProductsGroupedByCategory();
+
+      res.status(200).json({
+        success: true,
+        count: groupedData.length, // Number of categories
+        data: groupedData
+      });
+      
+    } catch (error) {
+      console.error("Grouped Listing Error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to load grouped products", 
+        error: error.message 
+      });
+    }
+  }
+
 }
 
 module.exports = new ProductController();

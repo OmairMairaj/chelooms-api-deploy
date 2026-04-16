@@ -433,6 +433,82 @@ class ProductService {
     return formattedProducts;
   }
 
+
+  // ==================================================
+  // 🛍️ FRONTEND: GET ALL PRODUCTS GROUPED BY CATEGORY
+  // ==================================================
+  async getAllProductsGroupedByCategory() {
+    // 1. Fetch all Active Categories aur unke andar sirf "Publish" products
+    const categories = await prisma.productCategory.findMany({
+      where: { isActive: true },
+      include: {
+        products: {
+          where: { status: "Publish" }
+        }
+      }
+    });
+
+    const groupedData = [];
+
+    // 2. Loop through categories and format
+    for (const category of categories) {
+      // Agar kisi category mein koi product nahi hai, toh usko skip kar do
+      if (!category.products || category.products.length === 0) {
+        continue;
+      }
+
+      // Products ko format karo
+      const formattedProducts = await Promise.all(category.products.map(async (product) => {
+        // Fabric ka naam nikalne ke liye
+        let defaultFabricName = "Standard";
+        if (product.allowedFabricIds && product.allowedFabricIds.length > 0) {
+          const firstFabric = await prisma.inventoryItem.findUnique({
+            where: { id: product.allowedFabricIds[0] },
+            select: { name: true }
+          });
+          if (firstFabric) defaultFabricName = firstFabric.name;
+        }
+
+        return {
+          product_id: product.id,
+          name: product.name,
+          category: category.name,
+          images: product.images || [],
+          thumbnails: product.thumbnails || [],
+          base_stitching_price: product.baseStitchingPrice,
+          status: product.status,
+          season_tags: product.seasonTags || [],
+          created_at: product.createdAt,
+          updated_at: product.updatedAt,
+          
+          // 🚫 modification_options HATA DIYA GAYA HAI
+          // 🚫 default_design HATA DIYA GAYA HAI
+
+          // 📊 Spec Display Summary
+          spec_display: {
+            fabric: defaultFabricName,
+            neckStyles: `${product.allowedNecklineOptionIds?.length || 0} styles`,
+            sleeves: `${product.allowedSleeveOptionIds?.length || 0} styles`,
+            hemline: `${product.allowedHemlineOptionIds?.length || 0} styles`,
+            sideSlits: `${product.allowedSideSlitIds?.length || 0} styles`,
+            embellishments: `${product.allowedEmbellishmentOptionIds?.length || 0} styles`
+          },
+
+          piece_type: product.pieceType
+        };
+      }));
+
+      // Group format build karna
+      groupedData.push({
+        categoryId: category.productCategoryId, // Aapka naya primary key standard
+        name: category.name,
+        products: formattedProducts
+      });
+    }
+
+    return groupedData;
+  }
+
 }
 
 module.exports = new ProductService();

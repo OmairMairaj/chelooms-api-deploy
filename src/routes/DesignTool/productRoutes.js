@@ -32,4 +32,7 @@ router.get('/:id/canvas', productController.getProductForCanvas);
 // 🛒 E-COM ROUTE: GET PRODUCTS BY CATEGORY NAME (e.g., /api/products/category/sherwani)
 router.get('/category/:categoryName', productController.getProductsByCategory);
 
+// 🛒 E-COM ROUTE: GET ALL PRODUCTS GROUPED BY CATEGORY
+router.get('/grouped/categories', productController.getAllGroupedProducts);
+
 module.exports = router;
