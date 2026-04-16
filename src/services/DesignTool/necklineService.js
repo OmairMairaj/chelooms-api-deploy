@@ -95,9 +95,38 @@ class NecklineService {
   // }
 
   // 5. Update an Option
+  // async updateOption(optionId, updateData) {
+  //   const dataToUpdate = {};
+    
+  //   if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
+  //   if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
+    
+  //   // Toggles update
+  //   if (updateData.hasButtons !== undefined) dataToUpdate.hasButtons = updateData.hasButtons;
+  //   if (updateData.isButton !== undefined) dataToUpdate.isButton = updateData.isButton;
+  //   if (updateData.thread !== undefined) dataToUpdate.thread = updateData.thread;
+  //   if (updateData.collarback !== undefined) dataToUpdate.collarback = updateData.collarback;
+    
+  //   if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
+  //   if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
+  //   if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
+  //   if (updateData.layers !== undefined) dataToUpdate.layers = updateData.layers;
+    
+  //   if (updateData.premium !== undefined) dataToUpdate.isPremium = updateData.premium;
+  //   if (updateData.premium_price !== undefined) {
+  //     dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;
+  //   }
+
+  //   return await prisma.necklineOption.update({
+  //     where: { optionId: optionId },
+  //     data: dataToUpdate
+  //   });
+  // }
+
   async updateOption(optionId, updateData) {
     const dataToUpdate = {};
     
+    // Basic text fields
     if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
     if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
     
@@ -107,11 +136,15 @@ class NecklineService {
     if (updateData.thread !== undefined) dataToUpdate.thread = updateData.thread;
     if (updateData.collarback !== undefined) dataToUpdate.collarback = updateData.collarback;
     
+    // Arrays and JSON updates
     if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
     if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
     if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
+    
+    // 🚀 Layers update (Isme updated Cloudinary URLs shamil honge)
     if (updateData.layers !== undefined) dataToUpdate.layers = updateData.layers;
     
+    // Premium fields
     if (updateData.premium !== undefined) dataToUpdate.isPremium = updateData.premium;
     if (updateData.premium_price !== undefined) {
       dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;

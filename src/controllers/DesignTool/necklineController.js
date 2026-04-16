@@ -106,6 +106,51 @@ class NecklineController {
       res.status(500).json({ success: false, error: error.message });
     }
   }
+
+  async updateOption(req, res) {
+    try {
+      const { id } = req.params;
+      const payload = { ...req.body };
+
+      // 1. Strings ko wapis Array/JSON banate hain
+      if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
+      if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
+      if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
+      
+      // 2. Booleans theek karna
+      if (payload.hasButtons !== undefined) payload.hasButtons = payload.hasButtons === 'true';
+      if (payload.isButton !== undefined) payload.isButton = payload.isButton === 'true';
+      if (payload.thread !== undefined) payload.thread = payload.thread === 'true';
+      if (payload.collarback !== undefined) payload.collarback = payload.collarback === 'true';
+      if (payload.premium !== undefined) payload.premium = payload.premium === 'true';
+
+      // 3. Handle Main Option Images (Thumbnail)
+      if (req.files && req.files.images && req.files.images.length > 0) {
+        payload.images = [req.files.images[0].path]; 
+      }
+
+      // 4. Handle Layer SVGs/Images (The Fix for Update)
+      if (req.files && req.files.layerFiles && req.files.layerFiles.length > 0) {
+        if (Array.isArray(payload.layers)) {
+          payload.layers = payload.layers.map((layer, index) => {
+            // Agar is index ki nayi file upload hui hai, toh Cloudinary URL update kar do
+            if (req.files.layerFiles[index]) {
+              layer.svgUrl = req.files.layerFiles[index].path; 
+            }
+            return layer;
+          });
+        }
+      }
+
+      // 5. Pass to Service Layer
+      const updatedOption = await necklineService.updateOption(id, payload);
+      res.status(200).json({ success: true, message: "Neckline Option Updated!", data: updatedOption });
+      
+    } catch (error) {
+      console.error("Update Neckline Option Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
   // async createOption(req, res) {
   //   try {
   //     const payload = { ...req.body };
@@ -138,31 +183,31 @@ class NecklineController {
   // }
 
   // 5. Update Option
-  async updateOption(req, res) {
-    try {
-      const { id } = req.params;
-      const payload = { ...req.body };
+  // async updateOption(req, res) {
+  //   try {
+  //     const { id } = req.params;
+  //     const payload = { ...req.body };
 
-      if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
-      if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
-      if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
+  //     if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
+  //     if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
+  //     if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
       
-      if (payload.hasButtons !== undefined) payload.hasButtons = payload.hasButtons === 'true';
-      if (payload.isButton !== undefined) payload.isButton = payload.isButton === 'true';
-      if (payload.thread !== undefined) payload.thread = payload.thread === 'true';
-      if (payload.collarback !== undefined) payload.collarback = payload.collarback === 'true';
-      if (payload.premium !== undefined) payload.premium = payload.premium === 'true';
+  //     if (payload.hasButtons !== undefined) payload.hasButtons = payload.hasButtons === 'true';
+  //     if (payload.isButton !== undefined) payload.isButton = payload.isButton === 'true';
+  //     if (payload.thread !== undefined) payload.thread = payload.thread === 'true';
+  //     if (payload.collarback !== undefined) payload.collarback = payload.collarback === 'true';
+  //     if (payload.premium !== undefined) payload.premium = payload.premium === 'true';
 
-      if (req.files && req.files.images && req.files.images.length > 0) {
-        payload.images = [req.files.images[0].path]; 
-      }
+  //     if (req.files && req.files.images && req.files.images.length > 0) {
+  //       payload.images = [req.files.images[0].path]; 
+  //     }
 
-      const updatedOption = await necklineService.updateOption(id, payload);
-      res.status(200).json({ success: true, message: "Neckline Option Updated!", data: updatedOption });
-    } catch (error) {
-      res.status(500).json({ success: false, error: error.message });
-    }
-  }
+  //     const updatedOption = await necklineService.updateOption(id, payload);
+  //     res.status(200).json({ success: true, message: "Neckline Option Updated!", data: updatedOption });
+  //   } catch (error) {
+  //     res.status(500).json({ success: false, error: error.message });
+  //   }
+  // }
 
   // ==========================================
   // 🪄 THE MAGIC API
