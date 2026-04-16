@@ -12,13 +12,29 @@ cloudinary.config({
 
 // 2. Storage Engine Banao
 // Ye batata hai ke image kahan aur kaise save hogi
+// 2. Storage Engine Banao
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: 'project_jute_inventory', // Cloudinary mein is folder mein jayengi images
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp','svg'], // Sirf images allow karo
-    transformation: [{ width: 800, crop: 'limit' }], // Auto-resize (Optimization)
-    resource_type: 'auto'
+  params: async (req, file) => {
+    // Check karte hain ke file SVG hai ya nahi
+    const isSvg = file.originalname.toLowerCase().endsWith('.svg') || file.mimetype === 'image/svg+xml';
+
+    // Agar SVG hai toh usko 'raw' format mein bhejo (Bina kisi image processing ke)
+    if (isSvg) {
+      return {
+        folder: 'project_jute_inventory',
+        resource_type: 'raw', // 🚀 MAGIC BULLET FOR SVGs
+        format: 'svg' 
+      };
+    } 
+    
+    // Baki normal images (JPG, PNG) ke liye purana logic
+    return {
+      folder: 'project_jute_inventory',
+      allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+      resource_type: 'auto',
+      transformation: [{ width: 800, crop: 'limit' }]
+    };
   },
 });
 
