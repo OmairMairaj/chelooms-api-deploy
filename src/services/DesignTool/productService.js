@@ -6,7 +6,7 @@ class ProductService {
     const product = await prisma.product.create({
       data: {
         name: data.name,
-        category: data.category,
+        productCategoryId : data.productCategoryId,
         pieceType: data.pieceType,
         baseStitchingPrice: data.baseStitchingPrice,
         status: data.status || 'Draft',
@@ -36,8 +36,13 @@ class ProductService {
   // ==================================================
   async getProductForFrontend(productId) {
     // 1. Fetch Basic Product
+    // const product = await prisma.product.findUnique({
+    //   where: { id: productId }
+    // });
+
     const product = await prisma.product.findUnique({
-      where: { id: productId }
+      where: { id: productId },
+      include: { productCategory: true } // 🔥 Yeh line add karni hai
     });
 
     if (!product) throw new Error("Product not found");
@@ -262,7 +267,7 @@ class ProductService {
     return {
       product_id: product.id,
       name: product.name,
-      category: product.category,
+      category: product.productCategory ? product.productCategory.name : "Unknown", // ✅ Naya structure
       images: product.images,
       thumbnails: product.thumbnails,
       base_stitching_price: product.baseStitchingPrice,
@@ -356,6 +361,78 @@ class ProductService {
       embellishments
     };
   }
+
+
+// ==================================================
+  // 🛍️ FRONTEND: GET ALL PRODUCTS BY CATEGORY NAME
+  // ==================================================
+  async getProductsByCategoryFrontend(categoryName) {
+    // 1. Fetch products where Category Name matches (Case Insensitive)
+    // Aur sirf wo products layen jinka status "Publish" hai
+    const products = await prisma.product.findMany({
+      where: {
+        productCategory: {
+          name: {
+            equals: categoryName,
+            mode: 'insensitive' // 'sherwani' aur 'Sherwani' dono ko same manega
+          }
+        },
+        status: "Publish" 
+      },
+      include: {
+        productCategory: true
+      }
+    });
+
+    if (!products || products.length === 0) {
+      return []; // Agar is category mein koi product nahi toh empty array
+    }
+
+    // 2. Format the response to match the exact shell structure
+    const formattedProducts = await Promise.all(products.map(async (product) => {
+      
+      // Fabric ka naam nikalne ke liye choti si query (taake spec_display perfect rahay)
+      let defaultFabricName = "Standard";
+      if (product.allowedFabricIds && product.allowedFabricIds.length > 0) {
+        const firstFabric = await prisma.inventoryItem.findUnique({
+          where: { id: product.allowedFabricIds[0] },
+          select: { name: true }
+        });
+        if (firstFabric) defaultFabricName = firstFabric.name;
+      }
+
+      return {
+        product_id: product.id,
+        name: product.name,
+        category: product.productCategory ? product.productCategory.name : categoryName,
+        images: product.images,
+        thumbnails: product.thumbnails,
+        base_stitching_price: product.baseStitchingPrice,
+        status: product.status,
+        season_tags: product.seasonTags,
+        created_at: product.createdAt,
+        updated_at: product.updatedAt,
+        
+        // 🚫 modification_options HATA DIYA GAYA HAI (As requested)
+
+        // 📊 Spec Display Summary (Sirf counts bhej rahe hain)
+        spec_display: {
+          fabric: defaultFabricName,
+          neckStyles: `${product.allowedNecklineOptionIds?.length || 0} styles`,
+          sleeves: `${product.allowedSleeveOptionIds?.length || 0} styles`,
+          hemline: `${product.allowedHemlineOptionIds?.length || 0} styles`,
+          sideSlits: `${product.allowedSideSlitIds?.length || 0} styles`,
+          embellishments: `${product.allowedEmbellishmentOptionIds?.length || 0} styles`
+        },
+
+        piece_type: product.pieceType,
+        default_design: product.defaultDesign
+      };
+    }));
+
+    return formattedProducts;
+  }
+
 }
 
 module.exports = new ProductService();

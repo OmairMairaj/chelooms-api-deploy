@@ -45,7 +45,7 @@ class ProductController {
       // Product Data map karna
       const productData = {
         name: req.body.name.trim(),
-        category: req.body.category.trim(),
+        productCategoryId: req.body.productCategoryId.trim(),
         pieceType: req.body.pieceType.trim(),
         baseStitchingPrice: parseFloat(req.body.baseStitchingPrice) || 0,
         status: req.body.status || 'Publish',
@@ -115,6 +115,30 @@ class ProductController {
       res.status(500).json({ 
         success: false, 
         message: "Failed to load form options", 
+        error: error.message 
+      });
+    }
+  }
+
+  // GET /api/products/category/:categoryName
+  async getProductsByCategory(req, res) {
+    try {
+      const { categoryName } = req.params;
+      
+      const productsData = await productService.getProductsByCategoryFrontend(categoryName);
+
+      // E-com frontend ke liye seedha array ya wrapper mein bhej dein
+      res.status(200).json({
+        success: true,
+        count: productsData.length,
+        data: productsData
+      });
+      
+    } catch (error) {
+      console.error("Category Listing Error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to load products for this category", 
         error: error.message 
       });
     }

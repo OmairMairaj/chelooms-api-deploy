@@ -29,4 +29,7 @@ router.post('/',
 // GET /api/products/:id/canvas - E-com Frontend Master JSON API
 router.get('/:id/canvas', productController.getProductForCanvas);
 
+// 🛒 E-COM ROUTE: GET PRODUCTS BY CATEGORY NAME (e.g., /api/products/category/sherwani)
+router.get('/category/:categoryName', productController.getProductsByCategory);
+
 module.exports = router;
