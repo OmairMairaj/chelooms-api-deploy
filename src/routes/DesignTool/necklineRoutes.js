@@ -14,8 +14,10 @@ router.put('/category/:id', protect, authorize('Administrator'), upload.fields([
 // ==========================================
 // 👕 OPTION ROUTES
 // ==========================================
-router.post('/option', protect, authorize('Administrator'), upload.fields([{ name: 'images', maxCount: 1 }]), necklineController.createOption);
-router.put('/option/:id', protect, authorize('Administrator'), upload.fields([{ name: 'images', maxCount: 1 }]), necklineController.updateOption);
+router.post('/option', protect, authorize('Administrator'), upload.fields([{ name: 'images', maxCount: 5 }, 
+    { name: 'layerFiles', maxCount: 10 }]), necklineController.createOption);
+router.put('/option/:id', protect, authorize('Administrator'), upload.fields([{ name: 'images', maxCount: 5 }, 
+    { name: 'layerFiles', maxCount: 10 }]), necklineController.updateOption);
 
 // ==========================================
 // 🪄 MAGIC ROUTE (Grouped Data)

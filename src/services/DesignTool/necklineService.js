@@ -61,13 +61,38 @@ class NecklineService {
         images: data.images || [], 
         keywords: data.keywords || [],
         tags: data.tags || [],
+        
+        // 🚀 Ab is layers array ke andar aapke Cloudinary ke SVG URLs bhi save honge
         layers: data.layers || [], 
         
         isPremium: data.premium || false, 
-        premiumPrice: data.premium_price ? parseFloat(data.premium_price) : null
+        premiumPrice: data.premiumPrice ? parseFloat(data.premiumPrice) : null
       }
     });
   }
+  // async createOption(data) {
+  //   return await prisma.necklineOption.create({
+  //     data: {
+  //       categoryId: data.categoryId, 
+  //       frontendId: data.frontendId || null,
+  //       name: data.name,
+        
+  //       // Neckline specific toggles
+  //       hasButtons: data.hasButtons || false,
+  //       isButton: data.isButton || false,
+  //       thread: data.thread || false,
+  //       collarback: data.collarback || false,
+        
+  //       images: data.images || [], 
+  //       keywords: data.keywords || [],
+  //       tags: data.tags || [],
+  //       layers: data.layers || [], 
+        
+  //       isPremium: data.premium || false, 
+  //       premiumPrice: data.premium_price ? parseFloat(data.premium_price) : null
+  //     }
+  //   });
+  // }
 
   // 5. Update an Option
   async updateOption(optionId, updateData) {
