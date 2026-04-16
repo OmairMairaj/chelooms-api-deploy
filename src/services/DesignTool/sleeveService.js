@@ -42,47 +42,109 @@ class SleeveService {
   // ==========================================
 
   // 3. Create a new Option
+  // async createOption(data) {
+  //   return await prisma.sleeveOption.create({
+  //     data: {
+  //       categoryId: data.categoryId, // Dropdown se aayegi
+  //       frontendId: data.frontendId || null,
+  //       name: data.name,
+  //       hasButtons: data.hasButtons || false,
+        
+  //       images: data.images || [], // Array of Cloudinary URLs
+  //       keywords: data.keywords || [],
+  //       tags: data.tags || [],
+  //       layers: data.layers || [], 
+        
+  //       isPremium: data.premium || false, 
+  //       premiumPrice: data.premium_price ? parseFloat(data.premium_price) : null
+  //     }
+  //   });
+  // }
+
+  // // 4. Update an Option
+  // async updateOption(optionId, updateData) {
+  //   const dataToUpdate = {};
+    
+  //   if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
+  //   if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
+  //   if (updateData.hasButtons !== undefined) dataToUpdate.hasButtons = updateData.hasButtons;
+    
+  //   if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
+  //   if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
+  //   if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
+  //   if (updateData.layers !== undefined) dataToUpdate.layers = updateData.layers;
+    
+  //   if (updateData.premium !== undefined) dataToUpdate.isPremium = updateData.premium;
+  //   if (updateData.premium_price !== undefined) {
+  //     dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;
+  //   }
+
+  //   return await prisma.sleeveOption.update({
+  //     where: { optionId: optionId },
+  //     data: dataToUpdate
+  //   });
+  // }
+
   async createOption(data) {
-    return await prisma.sleeveOption.create({
-      data: {
-        categoryId: data.categoryId, // Dropdown se aayegi
-        frontendId: data.frontendId || null,
-        name: data.name,
-        hasButtons: data.hasButtons || false,
-        
-        images: data.images || [], // Array of Cloudinary URLs
-        keywords: data.keywords || [],
-        tags: data.tags || [],
-        layers: data.layers || [], 
-        
-        isPremium: data.premium || false, 
-        premiumPrice: data.premium_price ? parseFloat(data.premium_price) : null
-      }
-    });
+    try {
+      console.log("⚙️ [SERVICE] Attempting to create Sleeve Option in DB...");
+      const result = await prisma.sleeveOption.create({
+        data: {
+          categoryId: data.categoryId, 
+          frontendId: data.frontendId || null,
+          name: data.name,
+          hasButtons: data.hasButtons || false,
+          
+          images: data.images || [], 
+          keywords: data.keywords || [],
+          tags: data.tags || [],
+          layers: data.layers || [], 
+          
+          isPremium: data.premium || false, 
+          premiumPrice: data.premiumPrice ? parseFloat(data.premiumPrice) : null
+        }
+      });
+      console.log("⚙️ [SERVICE] DB Create Successful!");
+      return result;
+    } catch (dbError) {
+      console.error("🔥 DATABASE ERROR IN SLEEVE CREATE:");
+      console.error(dbError);
+      throw new Error(`DB Create Error: ${dbError.message}`);
+    }
   }
 
-  // 4. Update an Option
   async updateOption(optionId, updateData) {
-    const dataToUpdate = {};
-    
-    if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
-    if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
-    if (updateData.hasButtons !== undefined) dataToUpdate.hasButtons = updateData.hasButtons;
-    
-    if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
-    if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
-    if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
-    if (updateData.layers !== undefined) dataToUpdate.layers = updateData.layers;
-    
-    if (updateData.premium !== undefined) dataToUpdate.isPremium = updateData.premium;
-    if (updateData.premium_price !== undefined) {
-      dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;
-    }
+    try {
+      console.log(`⚙️ [SERVICE] Formatting update data for Sleeve Option DB...`);
+      const dataToUpdate = {};
+      
+      if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
+      if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
+      if (updateData.hasButtons !== undefined) dataToUpdate.hasButtons = updateData.hasButtons;
+      
+      if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
+      if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
+      if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
+      if (updateData.layers !== undefined) dataToUpdate.layers = updateData.layers;
+      
+      if (updateData.premium !== undefined) dataToUpdate.isPremium = updateData.premium;
+      if (updateData.premium_price !== undefined) {
+        dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;
+      }
 
-    return await prisma.sleeveOption.update({
-      where: { optionId: optionId },
-      data: dataToUpdate
-    });
+      console.log(`⚙️ [SERVICE] Attempting to update DB...`);
+      const result = await prisma.sleeveOption.update({
+        where: { optionId: optionId },
+        data: dataToUpdate
+      });
+      
+      console.log("⚙️ [SERVICE] DB Update Successful!");
+      return result;
+    } catch (dbError) {
+      console.error("🔥 DATABASE ERROR IN SLEEVE UPDATE:");
+      console.error(dbError);
+      throw new Error(`DB Update Error: ${dbError.message}`);
+    }
   }
 
   // ==========================================

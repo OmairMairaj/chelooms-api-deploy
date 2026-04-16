@@ -53,43 +53,43 @@ class SleeveController {
   // ==========================================
 
   // 3. Create Option (With Cloudinary & FormData Parsing)
-  async createOption(req, res) {
-    try {
-      const payload = { ...req.body };
+  // async createOption(req, res) {
+  //   try {
+  //     const payload = { ...req.body };
 
-      // Strings ko wapis Array/JSON banate hain (Kyunki FormData se string aati hai)
-      if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
-      if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
-      if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
+  //     // Strings ko wapis Array/JSON banate hain (Kyunki FormData se string aati hai)
+  //     if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
+  //     if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
+  //     if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
       
-      // Booleans theek karna ('true' string -> actual true)
-      payload.hasButtons = payload.hasButtons === 'true';
-      payload.premium = payload.premium === 'true';
+  //     // Booleans theek karna ('true' string -> actual true)
+  //     payload.hasButtons = payload.hasButtons === 'true';
+  //     payload.premium = payload.premium === 'true';
 
-      let optionImagesUrl = [];
+  //     let optionImagesUrl = [];
 
-      // Handle Option Image Upload (Multer)
-      if (req.files && req.files.images && req.files.images.length > 0) {
-        // const uploadRes = await uploadToCloudinary(req.files.images[0].path);
-        // optionImagesUrl.push(uploadRes.secure_url);
+  //     // Handle Option Image Upload (Multer)
+  //     if (req.files && req.files.images && req.files.images.length > 0) {
+  //       // const uploadRes = await uploadToCloudinary(req.files.images[0].path);
+  //       // optionImagesUrl.push(uploadRes.secure_url);
         
-        // ⚠️ Dummy path for testing
-        optionImagesUrl.push(req.files.images[0].path);
-      }
+  //       // ⚠️ Dummy path for testing
+  //       optionImagesUrl.push(req.files.images[0].path);
+  //     }
 
-      const finalData = {
-        ...payload,
-        images: optionImagesUrl.length > 0 ? optionImagesUrl : []
-      };
+  //     const finalData = {
+  //       ...payload,
+  //       images: optionImagesUrl.length > 0 ? optionImagesUrl : []
+  //     };
 
-      const newOption = await sleeveService.createOption(finalData);
-      res.status(201).json({ success: true, message: "Option Created!", data: newOption });
+  //     const newOption = await sleeveService.createOption(finalData);
+  //     res.status(201).json({ success: true, message: "Option Created!", data: newOption });
 
-    } catch (error) {
-      console.error("Create Option Error:", error);
-      res.status(500).json({ success: false, error: error.message });
-    }
-  }
+  //   } catch (error) {
+  //     console.error("Create Option Error:", error);
+  //     res.status(500).json({ success: false, error: error.message });
+  //   }
+  // }
 
   // ==========================================
   // 🪄 THE MAGIC API (For Frontend List)
@@ -130,36 +130,143 @@ class SleeveController {
   // ==========================================
   // 👕 UPDATE OPTION
   // ==========================================
-  async updateOption(req, res) {
+  // async updateOption(req, res) {
+  //   try {
+  //     const { id } = req.params;
+  //     const payload = { ...req.body };
+
+  //     // 1. FormData ki strings ko wapis Arrays/Booleans mein convert karna
+  //     if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
+  //     if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
+  //     if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
+      
+  //     if (payload.hasButtons !== undefined) payload.hasButtons = payload.hasButtons === 'true';
+  //     if (payload.premium !== undefined) payload.premium = payload.premium === 'true';
+
+  //     // 2. Agar naya Option Thumbnail (Image) upload hua hai
+  //     if (req.files && req.files.images && req.files.images.length > 0) {
+  //       payload.images = [req.files.images[0].path]; 
+  //     }
+
+  //     // 3. Call the Service Layer (Jo code aapne bheja hai, wo ab yahan call hoga)
+  //     const updatedOption = await sleeveService.updateOption(id, payload);
+
+  //     res.status(200).json({ 
+  //       success: true, 
+  //       message: "Option Updated Successfully!", 
+  //       data: updatedOption 
+  //     });
+
+  //   } catch (error) {
+  //     console.error("Update Option Error:", error);
+  //     res.status(500).json({ success: false, error: error.message });
+  //   }
+  // }
+
+  async createOption(req, res) {
+    console.log("👉 [CREATE SLEEVE] Step 1: Request hit the controller!");
+    
     try {
-      const { id } = req.params;
+      console.log("👉 [CREATE SLEEVE] Step 2: Files received:", req.files ? Object.keys(req.files) : "No files");
+      
       const payload = { ...req.body };
 
-      // 1. FormData ki strings ko wapis Arrays/Booleans mein convert karna
+      // 1. Strings ko wapis Array/JSON banate hain
       if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
       if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
       if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
+      console.log("👉 [CREATE SLEEVE] Step 3: JSON Parsing successful.");
       
+      // 2. Booleans theek karna (Sleeves specific toggles)
+      payload.hasButtons = payload.hasButtons === 'true';
+      payload.premium = payload.premium === 'true';
+
+      // 3. Handle Main Option Images (Thumbnail)
+      let optionImagesUrl = [];
+      if (req.files && req.files.images && req.files.images.length > 0) {
+        optionImagesUrl = req.files.images.map(file => file.path); 
+        console.log("👉 [CREATE SLEEVE] Step 4: Main images mapped.");
+      }
+
+      // 4. 🚀 Handle Layer SVGs/Images (The Magic Fix)
+      if (req.files && req.files.layerFiles && req.files.layerFiles.length > 0) {
+        if (Array.isArray(payload.layers)) {
+          payload.layers = payload.layers.map((layer, index) => {
+            // Agar is index ki file aayi hai, toh uska Cloudinary URL layer object mein daal do
+            if (req.files.layerFiles[index]) {
+              layer.svgUrl = req.files.layerFiles[index].path; 
+            }
+            return layer;
+          });
+          console.log("👉 [CREATE SLEEVE] Step 5: Layer SVG files mapped exactly to indexes.");
+        }
+      }
+
+      // 5. Finalize data and pass to service
+      const finalData = { ...payload, images: optionImagesUrl };
+      
+      console.log("👉 [CREATE SLEEVE] Step 6: Sending data to Service layer...");
+      const newOption = await sleeveService.createOption(finalData);
+      
+      console.log("✅ [CREATE SLEEVE] Step 7: Success! Sleeve Option Created.");
+      res.status(201).json({ success: true, message: "Sleeve Option Created!", data: newOption });
+
+    } catch (error) {
+      console.error("❌ CRITICAL ERROR IN SLEEVE CREATE CONTROLLER:");
+      console.error(error.stack);
+      res.status(500).json({ success: false, error: error.message, stack: error.stack });
+    }
+  }
+
+  async updateOption(req, res) {
+    console.log(`👉 [UPDATE SLEEVE] Step 1: Request hit for ID: ${req.params.id}`);
+
+    try {
+      const { id } = req.params;
+      console.log("👉 [UPDATE SLEEVE] Step 2: Files received:", req.files ? Object.keys(req.files) : "No files");
+      
+      const payload = { ...req.body };
+
+      // 1. Strings ko wapis Array/JSON banate hain
+      if (typeof payload.layers === 'string') payload.layers = JSON.parse(payload.layers);
+      if (typeof payload.keywords === 'string') payload.keywords = JSON.parse(payload.keywords);
+      if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
+      console.log("👉 [UPDATE SLEEVE] Step 3: JSON Parsing successful.");
+      
+      // 2. Booleans theek karna
       if (payload.hasButtons !== undefined) payload.hasButtons = payload.hasButtons === 'true';
       if (payload.premium !== undefined) payload.premium = payload.premium === 'true';
 
-      // 2. Agar naya Option Thumbnail (Image) upload hua hai
+      // 3. Handle Main Option Images (Thumbnail)
       if (req.files && req.files.images && req.files.images.length > 0) {
         payload.images = [req.files.images[0].path]; 
+        console.log("👉 [UPDATE SLEEVE] Step 4: New Main Image mapped.");
       }
 
-      // 3. Call the Service Layer (Jo code aapne bheja hai, wo ab yahan call hoga)
+      // 4. 🚀 Handle Layer SVGs/Images for Update
+      if (req.files && req.files.layerFiles && req.files.layerFiles.length > 0) {
+        if (Array.isArray(payload.layers)) {
+          payload.layers = payload.layers.map((layer, index) => {
+            if (req.files.layerFiles[index]) {
+              layer.svgUrl = req.files.layerFiles[index].path; 
+            }
+            return layer;
+          });
+          console.log("👉 [UPDATE SLEEVE] Step 5: New Layer SVG files mapped to indexes.");
+        }
+      }
+
+      // 5. Pass to Service Layer
+      console.log("👉 [UPDATE SLEEVE] Step 6: Sending data to Service layer...");
       const updatedOption = await sleeveService.updateOption(id, payload);
-
-      res.status(200).json({ 
-        success: true, 
-        message: "Option Updated Successfully!", 
-        data: updatedOption 
-      });
-
+      
+      console.log("✅ [UPDATE SLEEVE] Step 7: Success! Sleeve Option Updated.");
+      res.status(200).json({ success: true, message: "Sleeve Option Updated Successfully!", data: updatedOption });
+      
     } catch (error) {
-      console.error("Update Option Error:", error);
-      res.status(500).json({ success: false, error: error.message });
+      console.error("❌ CRITICAL ERROR IN SLEEVE UPDATE CONTROLLER:");
+      console.error(error.stack);
+      res.status(500).json({ success: false, error: error.message, stack: error.stack });
     }
   }
 
