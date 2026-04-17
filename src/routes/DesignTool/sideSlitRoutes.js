@@ -22,12 +22,21 @@ router.get('/',
     sideSlitController.getAllSideSlits
 );
 
-// 3. Update Side Slit
+// 3. Reorder Side Slits
+router.post('/reorder', 
+    protect, 
+    authorize('Administrator'), 
+    sideSlitController.reorderSideSlits
+);
+
+// 4. Update Side Slit
 router.put('/:id', 
     protect, 
     authorize('Administrator'), 
     upload.any(), 
     sideSlitController.updateSideSlit
 );
+
+
 
 module.exports = router;

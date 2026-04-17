@@ -20,7 +20,7 @@ class EmbellishmentService {
   // Dropdown ke liye simple list
   async getAllCategories() {
     return await prisma.embellishmentCategory.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
   }
 
@@ -34,6 +34,19 @@ class EmbellishmentService {
       where: { categoryId: id },
       data: dataToUpdate
     });
+  }
+
+  // ==========================================
+  // REORDER CATEGORIES
+  // ==========================================
+  async reorderCategories(orderedIds) {
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.embellishmentCategory.update({
+        where: { categoryId: id }, // Primary key for categories
+        data: { sortOrder: index }
+      });
+    });
+    return await prisma.$transaction(transaction);
   }
 
   // ==========================================
@@ -84,6 +97,19 @@ class EmbellishmentService {
   }
 
   // ==========================================
+  // REORDER OPTIONS
+  // ==========================================
+  async reorderOptions(orderedIds) {
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.embellishmentOption.update({
+        where: { optionId: id }, // Primary key for options
+        data: { sortOrder: index }
+      });
+    });
+    return await prisma.$transaction(transaction);
+  }
+
+  // ==========================================
   // 🪄 THE MAGIC API (Grouped Data for Frontend)
   // ==========================================
 
@@ -91,10 +117,10 @@ class EmbellishmentService {
     const categories = await prisma.embellishmentCategory.findMany({
       include: {
         options: {
-          orderBy: { createdAt: 'asc' } // Options ko tarteeb se lane ke liye
+          orderBy: { sortOrder: 'asc' } // Options ko tarteeb se lane ke liye
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
 
     // Frontend ke JSON structure se exact match karne ke liye mapping

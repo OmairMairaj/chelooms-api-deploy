@@ -39,7 +39,7 @@ router.post('/option',
     authorize('Administrator'), 
     upload.fields([
         { name: 'images', maxCount: 5 },       // Main image(s) ke liye
-        { name: 'layerFiles', maxCount: 10 }   // 🚀 Layers ki SVGs ke liye (MUST)
+        { name: 'layerFiles', maxCount: 15 }   // 🚀 Layers ki SVGs ke liye (MUST)
     ]), 
     sleeveController.createOption
 );
@@ -50,7 +50,7 @@ router.put('/option/:id',
     authorize('Administrator'), 
     upload.fields([
         { name: 'images', maxCount: 5 },       // Main image(s) ke liye
-        { name: 'layerFiles', maxCount: 10 }   // 🚀 Layers ki SVGs ke liye (MUST)
+        { name: 'layerFiles', maxCount: 15 }   // 🚀 Layers ki SVGs ke liye (MUST)
     ]), 
     sleeveController.updateOption
 );

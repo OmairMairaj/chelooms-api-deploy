@@ -9,6 +9,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // --- ENUMS ---
@@ -608,6 +609,9 @@ model SideSlit {
   // ✂️ Side Slit Specific Fields
   allowedHemlineShapes  String[]  // e.g., ["square", "round"]
   cutouts               Json      // 🐙 The nested magic JSON for SVGs
+
+  // Sorting Order Field
+  sortOrder             Int       @default(0)
   
   createdAt             DateTime  @default(now()) @db.Timestamptz
   updatedAt             DateTime  @updatedAt @db.Timestamptz
@@ -629,6 +633,9 @@ model EmbellishmentCategory {
   
   // Relation to Options
   options     EmbellishmentOption[]
+
+  // Sorting Order Field
+  sortOrder   Int                   @default(0)
   
   createdAt   DateTime              @default(now()) @db.Timestamptz
   updatedAt   DateTime              @updatedAt @db.Timestamptz
@@ -666,6 +673,9 @@ model EmbellishmentOption {
   colors            Json                  // [{ id, name, hex }]
   overlays          Json                  // 🐙 The nested magic JSON for SVG layers & zIndex
   
+  // Sorting Order Field
+  sortOrder         Int                   @default(0)
+
   createdAt         DateTime              @default(now()) @db.Timestamptz
   updatedAt         DateTime              @updatedAt @db.Timestamptz
 

@@ -58,6 +58,26 @@ class EmbellishmentController {
   }
 
   // ==========================================
+  // REORDER CATEGORIES
+  // ==========================================
+  async reorderCategories(req, res) {
+    try {
+      const { orderedIds } = req.body;
+
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "Invalid orderedIds array." });
+      }
+
+      await embellishmentService.reorderCategories(orderedIds);
+
+      res.status(200).json({ success: true, message: "Categories reordered successfully!" });
+    } catch (error) {
+      console.error("Reorder Categories Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
   // ✨ OPTION APIs (Child) - WITH OVERLAYS UPLOAD
   // ==========================================
 
@@ -170,6 +190,26 @@ class EmbellishmentController {
       const updatedOption = await embellishmentService.updateOption(id, payload);
       res.status(200).json({ success: true, message: "Embellishment Option Updated!", data: updatedOption });
     } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
+  // REORDER OPTIONS
+  // ==========================================
+  async reorderOptions(req, res) {
+    try {
+      const { orderedIds } = req.body; // categoryId is optional here since option IDs are unique globally
+
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "Invalid orderedIds array." });
+      }
+
+      await embellishmentService.reorderOptions(orderedIds);
+
+      res.status(200).json({ success: true, message: "Options reordered successfully!" });
+    } catch (error) {
+      console.error("Reorder Options Error:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   }

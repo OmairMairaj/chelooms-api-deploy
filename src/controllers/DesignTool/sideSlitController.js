@@ -74,7 +74,36 @@ class SideSlitController {
   }
 
   // ==========================================
-  // 3. Update Side Slit
+  // 3. Reorder Side Slits (Drag and Drop)
+  // ==========================================
+  async reorderSideSlits(req, res) {
+    try {
+      const { orderedIds } = req.body;
+
+      // 1. Validate the incoming data
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid or missing orderedIds array." 
+        });
+      }
+
+      // 2. Pass the clean array to the Chef (Service)
+      await sideSlitService.reorderSideSlits(orderedIds);
+
+      // 3. Return success to the frontend
+      res.status(200).json({ 
+        success: true, 
+        message: "Side Slits reordered successfully!" 
+      });
+    } catch (error) {
+      console.error("Reorder Side Slits Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
+  // 4. Update Side Slit
   // ==========================================
   async updateSideSlit(req, res) {
     try {
@@ -122,6 +151,8 @@ class SideSlitController {
       res.status(500).json({ success: false, error: error.message });
     }
   }
+
+  
 }
 
 module.exports = new SideSlitController();

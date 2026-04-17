@@ -29,6 +29,13 @@ router.put('/category/:id',
     embellishmentController.updateCategory
 );
 
+// Reorder Categories
+router.post('/category/reorder', 
+    protect, 
+    authorize('Administrator'), 
+    embellishmentController.reorderCategories
+);
+
 // ==========================================
 // ✨ OPTION ROUTES (Child) - WITH OVERLAYS
 // ==========================================
@@ -47,6 +54,13 @@ router.put('/option/:id',
     authorize('Administrator'), 
     upload.any(), 
     embellishmentController.updateOption
+);
+
+// Reorder Options
+router.post('/option/reorder', 
+    protect, 
+    authorize('Administrator'), 
+    embellishmentController.reorderOptions
 );
 
 // ==========================================

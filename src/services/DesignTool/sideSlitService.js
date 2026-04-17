@@ -22,7 +22,7 @@ class SideSlitService {
   // 2. Get All Side Slits (The Magic JSON for Frontend)
   async getAllSideSlits() {
     const slits = await prisma.sideSlit.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
 
     // Frontend ko exactly wahi structure dena hai jo JSON mein tha
@@ -39,7 +39,21 @@ class SideSlitService {
     }));
   }
 
-  // 3. Update a Side Slit
+  // 3. Reorder Side Slits
+  async reorderSideSlits(orderedIds) {
+    // We map over the array of IDs and create an update command for each one
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.sideSlit.update({
+        where: { sideSlitId: id }, // Uses your exact Primary Key name
+        data: { sortOrder: index } // The array index dictates the new order
+      });
+    });
+
+    // $transaction ensures that if one update fails, they all fail, protecting your data
+    return await prisma.$transaction(transaction);
+  }
+
+  // 4. Update a Side Slit
   async updateSideSlit(id, updateData) {
     const dataToUpdate = {};
     
@@ -57,6 +71,8 @@ class SideSlitService {
       data: dataToUpdate
     });
   }
+
+  
 }
 
 module.exports = new SideSlitService();
