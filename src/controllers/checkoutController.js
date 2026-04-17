@@ -4,68 +4,7 @@ const jwt = require('jsonwebtoken');
 
 const checkoutController = {
 
-  // STEP 1: SAVE SHIPPING ADDRESS
-  // saveShippingAddress: async (req, res) => {
-  //   try {
-  //     // 👇 FIX: User ya Guest Identify karo
-  //     const userId = req.user ? req.user.user_id : null;
-  //     const guestId = req.user ? null : req.guestId; 
-
-  //     const { 
-  //       fullName, phone, email, 
-  //       addressLine1, addressLine2, city, province, postalCode, country 
-  //     } = req.body;
-
-  //     if (!fullName || !phone || !addressLine1 || !city) {
-  //       return res.status(400).json({ success: false, message: "Please fill all required fields" });
-  //     }
-
-  //     // 👇 FIX: Order dhoondne ka logic (User OR Guest)
-  //     const order = await prisma.order.findFirst({
-  //       where: {
-  //         OR: [
-  //           { user_id: userId ? userId : undefined },
-  //           { guestId: guestId ? guestId : undefined }
-  //         ],
-  //         operationalStatus: 'checkout_draft'
-  //       }
-  //     });
-
-  //     if (!order) {
-  //       return res.status(404).json({ success: false, message: "No active cart found" });
-  //     }
-
-  //     // Data Prep
-  //     const shippingData = {
-  //       addressLine1, addressLine2, city, province, postalCode, country: country || 'Pakistan'
-  //     };
-
-  //     const contactData = {
-  //       fullName, phone, email
-  //     };
-
-  //     // Update Order
-  //     const updatedOrder = await prisma.order.update({
-  //       where: { id: order.id },
-  //       data: {
-  //         shippingAddressData: shippingData,
-  //         contactDetails: contactData,
-  //       }
-  //     });
-
-  //     res.status(200).json({
-  //       success: true,
-  //       message: "Shipping details saved",
-  //       orderId: updatedOrder.id
-  //     });
-
-  //   } catch (error) {
-  //     console.error("Save Address Error:", error);
-  //     res.status(500).json({ success: false, error: error.message });
-  //   }
-  // },
-
-  // STEP 1: SAVE SHIPPING ADDRESS (Smart Auto-Save Logic)
+  
   saveShippingAddress: async (req, res) => {
     try {
       const userId = req.user ? req.user.user_id : null;
@@ -367,7 +306,7 @@ const checkoutController = {
     }
   },
 
-  // --- STEP 4: PLACE FINAL ORDER (Figma Screen 3 - The Big One) ---
+  
   // placeOrder: async (req, res) => {
   //   try {
   //     const userId = req.user.user_id;

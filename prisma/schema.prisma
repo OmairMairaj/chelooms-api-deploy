@@ -140,6 +140,7 @@ model User {
   orders          Order[]
   sizing_profiles UserSizingProfile[]
   inventory_logs  InventoryAuditLog[] // Relation for Admin actions
+  savedDesigns  SavedDesign[]
 
   @@map("users")
 }
@@ -740,6 +741,8 @@ model Product {
   // JSON format: { fabric: { option_1_id: "..." }, neckline: { ... } }
   defaultDesign                 Json     @map("default_design")
 
+  savedDesigns  SavedDesign[]
+
   createdAt                     DateTime @default(now()) @db.Timestamptz
   updatedAt                     DateTime @updatedAt @db.Timestamptz
 
@@ -763,4 +766,27 @@ model ProductCategory {
   updatedAt         DateTime  @updatedAt @db.Timestamptz
 
   @@map("product_categories")
+}
+
+model SavedDesign {
+  saveDesignId  String   @id @default(uuid()) 
+  
+  // 1. User Relation (Fixed: Int se String @db.Uuid kar diya)
+  userId        String   @db.Uuid      
+  user          User     @relation(fields: [userId], references: [user_id]) 
+
+  // 2. Base Product Relation (Fixed: Int se String kar diya)
+  productId     String      
+  product       Product  @relation(fields: [productId], references: [id])
+
+  // 3. Design Details
+  designName    String   @default("My Custom Design")
+  thumbnailUrl  String?  
+  canvasData    Json
+
+  // 4. Status 
+  status        String   @default("private")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

@@ -18,6 +18,7 @@ const embellishmentRoutes = require('./routes/DesignTool/embellishmentRoutes');
 const buttonOptionRoutes = require('./routes/DesignTool/buttonOptionRoutes');
 const productRoutes = require('./routes/DesignTool/productRoutes');
 const productCategoryRoutes = require('./routes/DesignTool/productCategoryRoutes');
+const savedDesignRoutes = require('./routes/savedDesignRoutes');
 const app = express();
 
 
@@ -56,6 +57,7 @@ app.use('/api/design-tool/embellishments', embellishmentRoutes);
 app.use('/api/design-tool/button-options', buttonOptionRoutes);
 app.use('/api/design-tool/products', productRoutes);
 app.use('/api/design-tool/product-categories', productCategoryRoutes);
+app.use('/api/design-tool/saved-designs', savedDesignRoutes);
 
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
