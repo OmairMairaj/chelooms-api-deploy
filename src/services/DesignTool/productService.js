@@ -102,70 +102,12 @@ class ProductService {
           premium: opt.isPremium || false,
           premium_price: opt.premiumPrice || null,
           overlays: opt.overlays || undefined, // For embellishments
-          shapeTag: opt.shapeTag || undefined // For hemlines
+          shapeTag: opt.shapeTag || undefined,
+          colors: opt.colors || undefined // For hemlines
         });
       });
       return Object.values(grouped);
     };
-
-    // 3. 👚 Fetch Necklines (with Category)
-    // let necklinesData = [];
-    // if (product.allowedNecklineOptionIds && product.allowedNecklineOptionIds.length > 0) {
-    //   const necklines = await prisma.necklineOption.findMany({
-    //     where: { optionId: { in: product.allowedNecklineOptionIds } },
-    //     include: { category: true }
-    //   });
-    //   necklinesData = groupByCategory(necklines);
-    // }
-
-    // // 4. 👘 Fetch Sleeves (with Category)
-    // let sleevesData = [];
-    // if (product.allowedSleeveOptionIds && product.allowedSleeveOptionIds.length > 0) {
-    //   const sleeves = await prisma.sleeveOption.findMany({
-    //     where: { optionId: { in: product.allowedSleeveOptionIds } },
-    //     include: { category: true }
-    //   });
-    //   sleevesData = groupByCategory(sleeves);
-    // }
-
-    // // 5. 👗 Fetch Hemlines (with Category)
-    // let hemlinesData = [];
-    // if (product.allowedHemlineOptionIds && product.allowedHemlineOptionIds.length > 0) {
-    //   const hemlines = await prisma.hemlineOption.findMany({
-    //     where: { optionId: { in: product.allowedHemlineOptionIds } },
-    //     include: { category: true }
-    //   });
-    //   hemlinesData = groupByCategory(hemlines);
-    // }
-
-    // // 6. ✂️ Fetch Side Slits (No Category relation needed, direct fetch)
-    // let sideSlitsData = [];
-    // if (product.allowedSideSlitIds && product.allowedSideSlitIds.length > 0) {
-    //   const sideSlits = await prisma.sideSlit.findMany({
-    //     where: { sideSlitId: { in: product.allowedSideSlitIds } }
-    //   });
-    //   sideSlitsData = sideSlits.map(slit => ({
-    //     id: slit.frontendId || slit.sideSlitId,
-    //     name: slit.name,
-    //     image: slit.image || [],
-    //     images: slit.images || [],
-    //     tags: slit.tags || [],
-    //     allowedHemlineShapes: slit.allowedHemlineShapes || [],
-    //     cutouts: slit.cutouts || {},
-    //     premium: slit.premium || false,
-    //     premium_price: slit.premiumPrice || null
-    //   }));
-    // }
-
-    // // 7. ✨ Fetch Embellishments (with Category)
-    // let embellishmentsData = [];
-    // if (product.allowedEmbellishmentOptionIds && product.allowedEmbellishmentOptionIds.length > 0) {
-    //   const embellishments = await prisma.embellishmentOption.findMany({
-    //     where: { optionId: { in: product.allowedEmbellishmentOptionIds } },
-    //     include: { category: true }
-    //   });
-    //   embellishmentsData = groupByCategory(embellishments);
-    // }
 
     // 3. 👚 Fetch Necklines (with Category)
     let necklinesData = [];
