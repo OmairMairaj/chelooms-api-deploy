@@ -113,6 +113,63 @@ const savedDesignController = {
 
       return res.status(500).json({ success: false, error: error.message });
     }
+  },
+
+  async getPublishedDesigns(req, res) {
+    console.log("👉 [GET PUBLISHED] Step 1: Request hit the controller!");
+
+    try {
+      // 1. Get Pagination Params from URL Query (Default: Page 1, Limit 10)
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+
+      // 2. Pass to Service
+      console.log(`👉 [GET PUBLISHED] Step 2: Requesting Page ${page}...`);
+      const result = await savedDesignService.getAllPublishedDesigns(page, limit);
+
+      console.log("✅ [GET PUBLISHED] Step 3: Success!");
+      return res.status(200).json({
+        success: true,
+        message: "Published designs fetched successfully.",
+        data: result.designs,
+        meta: result.meta
+      });
+
+    } catch (error) {
+      console.error("❌ CRITICAL ERROR IN GET PUBLISHED DESIGNS CONTROLLER:");
+      console.error(error.stack);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  async getMyDesigns(req, res) {
+    console.log("👉 [GET MY DESIGNS] Step 1: Request hit the controller!");
+
+    try {
+      // 1. Get User ID from Token (Auth Middleware)
+      const userId = req.user ? req.user.user_id : null;
+      if (!userId) {
+        console.log("❌ [GET MY DESIGNS] Error: Unauthorized.");
+        return res.status(401).json({ success: false, message: "Please login to see your designs." });
+      }
+
+      // 2. Pass to Service
+      console.log(`👉 [GET MY DESIGNS] Step 2: Fetching designs for User: ${userId}`);
+      const designs = await savedDesignService.getDesignsByUser(userId);
+
+      console.log("✅ [GET MY DESIGNS] Step 3: Success!");
+      return res.status(200).json({
+        success: true,
+        message: "Your designs have been fetched successfully.",
+        count: designs.length,
+        data: designs
+      });
+
+    } catch (error) {
+      console.error("❌ CRITICAL ERROR IN GET MY DESIGNS CONTROLLER:");
+      console.error(error.stack);
+      return res.status(500).json({ success: false, error: error.message });
+    }
   }
 };
 

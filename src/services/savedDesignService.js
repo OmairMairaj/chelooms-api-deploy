@@ -59,7 +59,83 @@ const savedDesignService = {
       console.error(dbError);
       throw dbError; // Controller mein handle karenge
     }
+  },
+
+  async getAllPublishedDesigns(page = 1, limit = 10) {
+    try {
+      console.log(`⚙️ [SERVICE] Fetching published designs. Page: ${page}, Limit: ${limit}`);
+      const skip = (page - 1) * limit;
+
+      // 1. Fetch designs with User & Product info
+      const designs = await prisma.savedDesign.findMany({
+        where: { status: 'published' },
+        skip: skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }, // Naye designs sabse upar aayenge
+        include: {
+          // 🚀 Frontend ke liye extra data (Joins)
+          user: { 
+            select: { first_name: true, last_name: true, profile_picture_url: true } 
+          },
+          product: { 
+            select: { name: true, baseStitchingPrice: true } 
+          }
+        }
+      });
+
+      // 2. Count total designs (Frontend pagination ke liye)
+      const total = await prisma.savedDesign.count({
+        where: { status: 'published' }
+      });
+
+      console.log(`⚙️ [SERVICE] Successfully fetched ${designs.length} published designs.`);
+      
+      return { 
+        designs, 
+        meta: {
+          total, 
+          currentPage: page, 
+          totalPages: Math.ceil(total / limit),
+          hasMore: page * limit < total
+        }
+      };
+      
+    } catch (dbError) {
+      console.error("🔥 DATABASE ERROR IN FETCH PUBLISHED DESIGNS:");
+      console.error(dbError);
+      throw dbError; 
+    }
+  },
+
+  async getDesignsByUser(userId) {
+    try {
+      console.log(`⚙️ [SERVICE] Fetching all designs for User ID: ${userId}`);
+
+      const designs = await prisma.savedDesign.findMany({
+        where: { userId: userId },
+        orderBy: { createdAt: 'desc' }, // Latest designs pehle dikhengi
+        include: {
+          product: {
+            select: { 
+              name: true, 
+              baseStitchingPrice: true,
+              images: true 
+            }
+          }
+        }
+      });
+
+      console.log(`⚙️ [SERVICE] Successfully fetched ${designs.length} designs for user.`);
+      return designs;
+
+    } catch (dbError) {
+      console.error("🔥 DATABASE ERROR IN FETCH USER DESIGNS:");
+      console.error(dbError);
+      throw dbError;
+    }
   }
+
+
 };
 
 module.exports = savedDesignService;

@@ -19,4 +19,8 @@ router.post(
 
 router.patch('/:id/status', protect, savedDesignController.updateStatus);
 
+router.get('/published', savedDesignController.getPublishedDesigns);
+
+router.get('/my-designs', protect, savedDesignController.getMyDesigns);
+
 module.exports = router;
