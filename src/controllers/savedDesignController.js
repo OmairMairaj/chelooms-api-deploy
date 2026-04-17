@@ -23,10 +23,25 @@ const savedDesignController = {
       }
 
       // 4. Handle Thumbnail Image (Agar frontend ne image file bheji hai)
+      // 4. Handle Thumbnail Image (Smart Check)
       let thumbnailUrl = null;
-      if (req.files && req.files.thumbnail && req.files.thumbnail.length > 0) {
-        thumbnailUrl = req.files.thumbnail[0].path; // Cloudinary URL from Multer
-        console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded to Cloudinary.");
+      console.log("🕵️ req.files PURA OBJECT:", JSON.stringify(req.files, null, 2));
+      // 🕵️ DEBUGGING: Console pe check karte hain multer ne file kahan rakhi hai
+      console.log("🕵️ Check req.file:", req.file ? "File Exists" : "Undefined");
+      console.log("🕵️ Check req.files:", req.files ? "Files Object Exists" : "Undefined");
+
+      if (req.file && req.file.path) {
+        // Scenario A: Agar route mein `upload.single('thumbnail')` lagaya hai
+        thumbnailUrl = req.file.path;
+        console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded via req.file");
+      } 
+      else if (req.files && req.files.thumbnail && req.files.thumbnail.length > 0) {
+        // Scenario B: Agar route mein `upload.fields([{ name: 'thumbnail' }])` lagaya hai
+        thumbnailUrl = req.files.thumbnail[0].path; 
+        console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded via req.files");
+      } 
+      else {
+        console.log("⚠️ [SAVE DESIGN] Step 3: No thumbnail image found in request.");
       }
 
       // 5. Parse JSON agar frontend ne stringify karke bheja ho
