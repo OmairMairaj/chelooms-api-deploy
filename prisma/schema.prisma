@@ -481,9 +481,6 @@ model NecklineOption {
   
   // 🔘 Neckline Specific Toggles
   hasButtons    Boolean          @default(false)
-  isButton      Boolean          @default(false)
-  thread        Boolean          @default(false)
-  collarback    Boolean          @default(false)
   
   // 🖼️ Media & Data
   images        String[]         // Cloudinary URL array

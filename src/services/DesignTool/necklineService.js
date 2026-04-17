@@ -46,45 +46,37 @@ class NecklineService {
 
   async createOption(data) {
     try {
-      console.log("⚙️ [SERVICE] Attempting to create in DB...");
-      const result = await prisma.necklineOption.create({
+      return await prisma.necklineOption.create({
         data: {
           categoryId: data.categoryId, 
           frontendId: data.frontendId || null,
           name: data.name,
-          hasButtons: data.hasButtons || false,
-          isButton: data.isButton || false,
-          thread: data.thread || false,
-          collarback: data.collarback || false,
+          
+          hasButtons: data.hasButtons || false, // Sirf hasButtons bacha hai yahan
+          
           images: data.images || [], 
           keywords: data.keywords || [],
           tags: data.tags || [],
-          layers: data.layers || [], 
+          layers: data.layers || [], // isCollarback ab is layers ke andar safely chala jayega
+          
           isPremium: data.premium || false, 
           premiumPrice: data.premiumPrice ? parseFloat(data.premiumPrice) : null
         }
       });
-      console.log("⚙️ [SERVICE] DB Create Successful!");
-      return result;
     } catch (dbError) {
-      console.error("🔥 DATABASE ERROR IN CREATE:");
-      console.error(dbError);
+      console.error("🔥 DATABASE ERROR IN CREATE:", dbError);
       throw new Error(`DB Create Error: ${dbError.message}`);
     }
   }
   
   async updateOption(optionId, updateData) {
     try {
-      console.log(`⚙️ [SERVICE] Formatting update data for DB...`);
       const dataToUpdate = {};
       
       if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
       if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
       
       if (updateData.hasButtons !== undefined) dataToUpdate.hasButtons = updateData.hasButtons;
-      if (updateData.isButton !== undefined) dataToUpdate.isButton = updateData.isButton;
-      if (updateData.thread !== undefined) dataToUpdate.thread = updateData.thread;
-      if (updateData.collarback !== undefined) dataToUpdate.collarback = updateData.collarback;
       
       if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
       if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
@@ -96,80 +88,83 @@ class NecklineService {
         dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;
       }
 
-      console.log(`⚙️ [SERVICE] Attempting to update DB...`);
-      const result = await prisma.necklineOption.update({
+      return await prisma.necklineOption.update({
         where: { optionId: optionId },
         data: dataToUpdate
       });
-      
-      console.log("⚙️ [SERVICE] DB Update Successful!");
-      return result;
     } catch (dbError) {
-      console.error("🔥 DATABASE ERROR IN UPDATE:");
-      console.error(dbError);
+      console.error("🔥 DATABASE ERROR IN UPDATE:", dbError);
       throw new Error(`DB Update Error: ${dbError.message}`);
     }
   }
-  // 4. Create a new Option
+
   // async createOption(data) {
-  //   return await prisma.necklineOption.create({
-  //     data: {
-  //       categoryId: data.categoryId, 
-  //       frontendId: data.frontendId || null,
-  //       name: data.name,
-        
-  //       // Neckline specific toggles
-  //       hasButtons: data.hasButtons || false,
-  //       isButton: data.isButton || false,
-  //       thread: data.thread || false,
-  //       collarback: data.collarback || false,
-        
-  //       images: data.images || [], 
-  //       keywords: data.keywords || [],
-  //       tags: data.tags || [],
-        
-  //       // 🚀 Ab is layers array ke andar aapke Cloudinary ke SVG URLs bhi save honge
-  //       layers: data.layers || [], 
-        
-  //       isPremium: data.premium || false, 
-  //       premiumPrice: data.premiumPrice ? parseFloat(data.premiumPrice) : null
-  //     }
-  //   });
+  //   try {
+  //     console.log("⚙️ [SERVICE] Attempting to create in DB...");
+  //     const result = await prisma.necklineOption.create({
+  //       data: {
+  //         categoryId: data.categoryId, 
+  //         frontendId: data.frontendId || null,
+  //         name: data.name,
+  //         hasButtons: data.hasButtons || false,
+  //         isButton: data.isButton || false,
+  //         thread: data.thread || false,
+  //         collarback: data.collarback || false,
+  //         images: data.images || [], 
+  //         keywords: data.keywords || [],
+  //         tags: data.tags || [],
+  //         layers: data.layers || [], 
+  //         isPremium: data.premium || false, 
+  //         premiumPrice: data.premiumPrice ? parseFloat(data.premiumPrice) : null
+  //       }
+  //     });
+  //     console.log("⚙️ [SERVICE] DB Create Successful!");
+  //     return result;
+  //   } catch (dbError) {
+  //     console.error("🔥 DATABASE ERROR IN CREATE:");
+  //     console.error(dbError);
+  //     throw new Error(`DB Create Error: ${dbError.message}`);
+  //   }
   // }
   
-
   // async updateOption(optionId, updateData) {
-  //   const dataToUpdate = {};
-    
-  //   // Basic text fields
-  //   if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
-  //   if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
-    
-  //   // Toggles update
-  //   if (updateData.hasButtons !== undefined) dataToUpdate.hasButtons = updateData.hasButtons;
-  //   if (updateData.isButton !== undefined) dataToUpdate.isButton = updateData.isButton;
-  //   if (updateData.thread !== undefined) dataToUpdate.thread = updateData.thread;
-  //   if (updateData.collarback !== undefined) dataToUpdate.collarback = updateData.collarback;
-    
-  //   // Arrays and JSON updates
-  //   if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
-  //   if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
-  //   if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
-    
-  //   // 🚀 Layers update (Isme updated Cloudinary URLs shamil honge)
-  //   if (updateData.layers !== undefined) dataToUpdate.layers = updateData.layers;
-    
-  //   // Premium fields
-  //   if (updateData.premium !== undefined) dataToUpdate.isPremium = updateData.premium;
-  //   if (updateData.premium_price !== undefined) {
-  //     dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;
-  //   }
+  //   try {
+  //     console.log(`⚙️ [SERVICE] Formatting update data for DB...`);
+  //     const dataToUpdate = {};
+      
+  //     if (updateData.frontendId !== undefined) dataToUpdate.frontendId = updateData.frontendId;
+  //     if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
+      
+  //     if (updateData.hasButtons !== undefined) dataToUpdate.hasButtons = updateData.hasButtons;
+  //     if (updateData.isButton !== undefined) dataToUpdate.isButton = updateData.isButton;
+  //     if (updateData.thread !== undefined) dataToUpdate.thread = updateData.thread;
+  //     if (updateData.collarback !== undefined) dataToUpdate.collarback = updateData.collarback;
+      
+  //     if (updateData.images !== undefined) dataToUpdate.images = updateData.images;
+  //     if (updateData.keywords !== undefined) dataToUpdate.keywords = updateData.keywords;
+  //     if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
+  //     if (updateData.layers !== undefined) dataToUpdate.layers = updateData.layers;
+      
+  //     if (updateData.premium !== undefined) dataToUpdate.isPremium = updateData.premium;
+  //     if (updateData.premium_price !== undefined) {
+  //       dataToUpdate.premiumPrice = updateData.premium_price ? parseFloat(updateData.premium_price) : null;
+  //     }
 
-  //   return await prisma.necklineOption.update({
-  //     where: { optionId: optionId },
-  //     data: dataToUpdate
-  //   });
+  //     console.log(`⚙️ [SERVICE] Attempting to update DB...`);
+  //     const result = await prisma.necklineOption.update({
+  //       where: { optionId: optionId },
+  //       data: dataToUpdate
+  //     });
+      
+  //     console.log("⚙️ [SERVICE] DB Update Successful!");
+  //     return result;
+  //   } catch (dbError) {
+  //     console.error("🔥 DATABASE ERROR IN UPDATE:");
+  //     console.error(dbError);
+  //     throw new Error(`DB Update Error: ${dbError.message}`);
+  //   }
   // }
+
 
   // ==========================================
   // 🪄 THE MAGIC GETTER (For Frontend List)
