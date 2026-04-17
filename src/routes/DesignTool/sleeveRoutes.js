@@ -28,6 +28,13 @@ router.get('/categories',
     sleeveController.getAllCategories
 );
 
+// Reorder Categories
+router.post('/category/reorder', 
+    protect, 
+    authorize('Administrator'), 
+    sleeveController.reorderCategories
+);
+
 
 // ==========================================
 // 👕 OPTION ROUTES
@@ -53,6 +60,13 @@ router.put('/option/:id',
         { name: 'layerFiles', maxCount: 15 }   // 🚀 Layers ki SVGs ke liye (MUST)
     ]), 
     sleeveController.updateOption
+);
+
+// Reorder Options
+router.post('/option/reorder', 
+    protect, 
+    authorize('Administrator'), 
+    sleeveController.reorderOptions
 );
 
 // ==========================================

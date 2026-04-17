@@ -29,6 +29,13 @@ router.put('/category/:id',
     hemlineController.updateCategory
 );
 
+// Reorder Categories
+router.post('/category/reorder', 
+    protect, 
+    authorize('Administrator'), 
+    hemlineController.reorderCategories
+);
+
 // ==========================================
 // 👕 OPTION ROUTES (Child) - WITH LAYERS
 // ==========================================
@@ -48,6 +55,13 @@ router.put('/option/:id',
     authorize('Administrator'), 
     upload.fields([{ name: 'layerImages', maxCount: 10 }]), 
     hemlineController.updateOption
+);
+
+// Reorder Options
+router.post('/option/reorder', 
+    protect, 
+    authorize('Administrator'), 
+    hemlineController.reorderOptions
 );
 
 // ==========================================

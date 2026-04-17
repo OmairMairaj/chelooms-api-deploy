@@ -465,6 +465,9 @@ model NecklineCategory {
   
   options       NecklineOption[] // Relation to options
 
+  // Sorting Order Field
+  sortOrder     Int              @default(0)
+
   createdAt     DateTime         @default(now()) @db.Timestamptz
   updatedAt     DateTime         @updatedAt @db.Timestamptz
 
@@ -497,6 +500,9 @@ model NecklineOption {
   categoryId    String           @map("category_id")
   category      NecklineCategory @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
 
+  // Sorting Order Field
+  sortOrder     Int              @default(0)
+
   createdAt     DateTime         @default(now()) @db.Timestamptz
   updatedAt     DateTime         @updatedAt @db.Timestamptz
 
@@ -513,6 +519,10 @@ model SleeveCategory {
   name          String
   image         String[]       
   options       SleeveOption[] 
+
+  // Sorting Order Field
+  sortOrder     Int            @default(0)
+
   createdAt     DateTime       @default(now()) @db.Timestamptz
   updatedAt     DateTime       @updatedAt @db.Timestamptz
 
@@ -535,6 +545,10 @@ model SleeveOption {
   premiumPrice  Float?         @map("premium_price")
   categoryId    String         @map("category_id")
   category      SleeveCategory @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
+
+  // Sorting Order Field
+  sortOrder     Int            @default(0)
+
   createdAt     DateTime       @default(now()) @db.Timestamptz
   updatedAt     DateTime       @updatedAt @db.Timestamptz
 
@@ -553,6 +567,9 @@ model HemlineCategory {
   image         String[]        // Cloudinary URL array (Category Thumbnail)
   
   options       HemlineOption[] // Relation to options
+
+  // Sorting Order Field
+  sortOrder     Int             @default(0)
 
   createdAt     DateTime        @default(now()) @db.Timestamptz
   updatedAt     DateTime        @updatedAt @db.Timestamptz
@@ -581,6 +598,9 @@ model HemlineOption {
   // 🔗 Relation: Yeh option kis category ka hissa hai?
   categoryId    String          @map("category_id")
   category      HemlineCategory @relation(fields: [categoryId], references: [categoryId], onDelete: Cascade)
+
+  // Sorting Order Field
+  sortOrder     Int             @default(0)
 
   createdAt     DateTime        @default(now()) @db.Timestamptz
   updatedAt     DateTime        @updatedAt @db.Timestamptz

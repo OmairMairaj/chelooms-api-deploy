@@ -128,6 +128,40 @@ class SleeveController {
   }
 
   // ==========================================
+  // REORDER CATEGORIES
+  // ==========================================
+  async reorderCategories(req, res) {
+    try {
+      const { orderedIds } = req.body;
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "Invalid orderedIds array." });
+      }
+      await sleeveService.reorderCategories(orderedIds);
+      res.status(200).json({ success: true, message: "Categories reordered successfully!" });
+    } catch (error) {
+      console.error("Reorder Sleeve Categories Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
+  // REORDER OPTIONS
+  // ==========================================
+  async reorderOptions(req, res) {
+    try {
+      const { orderedIds } = req.body;
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "Invalid orderedIds array." });
+      }
+      await sleeveService.reorderOptions(orderedIds);
+      res.status(200).json({ success: true, message: "Options reordered successfully!" });
+    } catch (error) {
+      console.error("Reorder Sleeve Options Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
   // 👕 UPDATE OPTION
   // ==========================================
   // async updateOption(req, res) {
@@ -188,18 +222,30 @@ class SleeveController {
         console.log("👉 [CREATE SLEEVE] Step 4: Main images mapped.");
       }
 
-      // 4. 🚀 Handle Layer SVGs/Images (The Magic Fix)
-      if (req.files && req.files.layerFiles && req.files.layerFiles.length > 0) {
-        if (Array.isArray(payload.layers)) {
-          payload.layers = payload.layers.map((layer, index) => {
-            // Agar is index ki file aayi hai, toh uska Cloudinary URL layer object mein daal do
-            if (req.files.layerFiles[index]) {
-              layer.svgUrl = req.files.layerFiles[index].path; 
+      // 4. 🚀 Handle Layer SVGs/Images & Booleans
+      // Admin sends layers as a JSON.stringify'd array, so booleans usually
+      // round-trip cleanly. We still coerce defensively in case a non-admin
+      // caller (Postman, scripts) sends string "true"/"false" per layer —
+      // this matches the necklineController behaviour.
+      if (Array.isArray(payload.layers)) {
+        payload.layers = payload.layers.map((layer, index) => {
+          // A. Coerce every per-layer flag to a real boolean
+          ['isCutout', 'isInterior', 'isButton', 'isButtonThread', 'isShadow'].forEach((flag) => {
+            if (layer[flag] !== undefined) {
+              layer[flag] = layer[flag] === true || layer[flag] === 'false';
             }
-            return layer;
           });
-          console.log("👉 [CREATE SLEEVE] Step 5: Layer SVG files mapped exactly to indexes.");
-        }
+
+          // B. Map uploaded SVG/PNG file to this layer's svgUrl (if present).
+          // Admin sends placeholder.svg for layers with no new upload (to keep array
+          // indices aligned) — ignore those so existing svgUrl is preserved.
+          const uploadedFile = req.files && req.files.layerFiles && req.files.layerFiles[index];
+          if (uploadedFile && uploadedFile.originalname !== 'placeholder.svg') {
+            layer.svgUrl = uploadedFile.path;
+          }
+          return layer;
+        });
+        console.log("👉 [CREATE SLEEVE] Step 5: Layer flags + SVG files mapped.");
       }
 
       // 5. Finalize data and pass to service
@@ -243,17 +289,24 @@ class SleeveController {
         console.log("👉 [UPDATE SLEEVE] Step 4: New Main Image mapped.");
       }
 
-      // 4. 🚀 Handle Layer SVGs/Images for Update
-      if (req.files && req.files.layerFiles && req.files.layerFiles.length > 0) {
-        if (Array.isArray(payload.layers)) {
-          payload.layers = payload.layers.map((layer, index) => {
-            if (req.files.layerFiles[index]) {
-              layer.svgUrl = req.files.layerFiles[index].path; 
+      // 4. 🚀 Handle Layer SVGs/Images & Booleans for Update
+      if (Array.isArray(payload.layers)) {
+        payload.layers = payload.layers.map((layer, index) => {
+          // A. Coerce per-layer flags (defensive — admin already sends booleans)
+          ['isCutout', 'isInterior', 'isButton', 'isButtonThread', 'isShadow'].forEach((flag) => {
+            if (layer[flag] !== undefined) {
+              layer[flag] = layer[flag] === true || layer[flag] === 'true';
             }
-            return layer;
           });
-          console.log("👉 [UPDATE SLEEVE] Step 5: New Layer SVG files mapped to indexes.");
-        }
+
+          // B. Map uploaded SVG file — skip admin placeholder.svg to preserve existing svgUrl
+          const uploadedFile = req.files && req.files.layerFiles && req.files.layerFiles[index];
+          if (uploadedFile && uploadedFile.originalname !== 'placeholder.svg') {
+            layer.svgUrl = uploadedFile.path;
+          }
+          return layer;
+        });
+        console.log("👉 [UPDATE SLEEVE] Step 5: Layer flags + new SVGs mapped.");
       }
 
       // 5. Pass to Service Layer

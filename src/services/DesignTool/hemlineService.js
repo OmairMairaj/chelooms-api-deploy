@@ -21,8 +21,34 @@ class HemlineService {
   // 2. Get All Categories (Dropdown ke liye)
   async getAllCategories() {
     return await prisma.hemlineCategory.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
+  }
+
+  // ==========================================
+  // REORDER CATEGORIES
+  // ==========================================
+  async reorderCategories(orderedIds) {
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.hemlineCategory.update({
+        where: { categoryId: id },
+        data: { sortOrder: index }
+      });
+    });
+    return await prisma.$transaction(transaction);
+  }
+
+  // ==========================================
+  // REORDER OPTIONS
+  // ==========================================
+  async reorderOptions(orderedIds) {
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.hemlineOption.update({
+        where: { optionId: id },
+        data: { sortOrder: index }
+      });
+    });
+    return await prisma.$transaction(transaction);
   }
 
   // 3. Update a Category
@@ -91,9 +117,11 @@ class HemlineService {
   async getAllHemlinesGrouped() {
     const categories = await prisma.hemlineCategory.findMany({
       include: {
-        options: true // Child data sath laye
+        options: {
+          orderBy: { sortOrder: 'asc' }
+        }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
 
     // Frontend ke JSON format mein map karna (With dbIds)

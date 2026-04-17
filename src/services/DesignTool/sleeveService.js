@@ -33,8 +33,34 @@ class SleeveService {
   // 2. Get All Categories (Sirf Dropdown ke liye form mein)
   async getAllCategories() {
     return await prisma.sleeveCategory.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
+  }
+
+  // ==========================================
+  // REORDER CATEGORIES
+  // ==========================================
+  async reorderCategories(orderedIds) {
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.sleeveCategory.update({
+        where: { categoryId: id },
+        data: { sortOrder: index }
+      });
+    });
+    return await prisma.$transaction(transaction);
+  }
+
+  // ==========================================
+  // REORDER OPTIONS
+  // ==========================================
+  async reorderOptions(orderedIds) {
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.sleeveOption.update({
+        where: { optionId: id },
+        data: { sortOrder: index }
+      });
+    });
+    return await prisma.$transaction(transaction);
   }
 
   // ==========================================
@@ -156,13 +182,16 @@ class SleeveService {
     // Prisma yahan automatically Dono tables ko JOIN kar dega
     const categories = await prisma.sleeveCategory.findMany({
       include: {
-        options: true // 🪄 Yeh hai asal jadoo! Child data sath le aao
+        options: {
+          orderBy: { sortOrder: 'asc' }
+        }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
 
     // Frontend ke exact JSON format mein map karna
     return categories.map(cat => ({
+      dbId: cat.categoryId, // UUID for updating/reordering category
       id: cat.frontendId,
       name: cat.name,
       image: cat.image,

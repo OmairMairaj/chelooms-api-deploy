@@ -54,6 +54,40 @@ class NecklineController {
     }
   }
 
+  // ==========================================
+  // REORDER CATEGORIES
+  // ==========================================
+  async reorderCategories(req, res) {
+    try {
+      const { orderedIds } = req.body;
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "Invalid orderedIds array." });
+      }
+      await necklineService.reorderCategories(orderedIds);
+      res.status(200).json({ success: true, message: "Categories reordered successfully!" });
+    } catch (error) {
+      console.error("Reorder Neckline Categories Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
+  // REORDER OPTIONS
+  // ==========================================
+  async reorderOptions(req, res) {
+    try {
+      const { orderedIds } = req.body;
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "Invalid orderedIds array." });
+      }
+      await necklineService.reorderOptions(orderedIds);
+      res.status(200).json({ success: true, message: "Options reordered successfully!" });
+    } catch (error) {
+      console.error("Reorder Neckline Options Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
   async createOption(req, res) {
     console.log("👉 [CREATE NECKLINE] Step 1: Request hit the controller!");
     
@@ -81,9 +115,10 @@ class NecklineController {
           // A. Layer ki naye booleans ko parse karna
           layer.isCollarback = layer.isCollarback === true || layer.isCollarback === 'true';
           
-          // B. SVG Map karna
-          if (req.files && req.files.layerFiles && req.files.layerFiles[index]) {
-            layer.svgUrl = req.files.layerFiles[index].path; 
+          // B. SVG Map karna — admin placeholder.svg ignore karo taake existing svgUrl overwrite na ho
+          const uploadedFile = req.files && req.files.layerFiles && req.files.layerFiles[index];
+          if (uploadedFile && uploadedFile.originalname !== 'placeholder.svg') {
+            layer.svgUrl = uploadedFile.path;
           }
           return layer;
         });
@@ -131,9 +166,10 @@ class NecklineController {
              layer.isCollarback = layer.isCollarback === true || layer.isCollarback === 'true';
           }
           
-          // B. SVG Map karna
-          if (req.files && req.files.layerFiles && req.files.layerFiles[index]) {
-            layer.svgUrl = req.files.layerFiles[index].path; 
+          // B. SVG Map karna — admin placeholder.svg ignore karo taake existing svgUrl overwrite na ho
+          const uploadedFile = req.files && req.files.layerFiles && req.files.layerFiles[index];
+          if (uploadedFile && uploadedFile.originalname !== 'placeholder.svg') {
+            layer.svgUrl = uploadedFile.path;
           }
           return layer;
         });

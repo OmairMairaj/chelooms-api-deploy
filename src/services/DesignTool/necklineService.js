@@ -22,8 +22,21 @@ class NecklineService {
   // 2. Get All Categories (Dropdown ke liye)
   async getAllCategories() {
     return await prisma.necklineCategory.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
+  }
+
+  // ==========================================
+  // REORDER CATEGORIES
+  // ==========================================
+  async reorderCategories(orderedIds) {
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.necklineCategory.update({
+        where: { categoryId: id },
+        data: { sortOrder: index }
+      });
+    });
+    return await prisma.$transaction(transaction);
   }
 
   // 3. Update a Category
@@ -170,13 +183,28 @@ class NecklineService {
   // 🪄 THE MAGIC GETTER (For Frontend List)
   // ==========================================
 
+  // ==========================================
+  // REORDER OPTIONS
+  // ==========================================
+  async reorderOptions(orderedIds) {
+    const transaction = orderedIds.map((id, index) => {
+      return prisma.necklineOption.update({
+        where: { optionId: id },
+        data: { sortOrder: index }
+      });
+    });
+    return await prisma.$transaction(transaction);
+  }
+
   // 6. Get All Necklines Grouped
   async getAllNecklinesGrouped() {
     const categories = await prisma.necklineCategory.findMany({
       include: {
-        options: true // Child data sath laye
+        options: {
+          orderBy: { sortOrder: 'asc' }
+        }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { sortOrder: 'asc' }
     });
 
     // Frontend ke JSON format mein map karna

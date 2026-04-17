@@ -54,6 +54,40 @@ class HemlineController {
   }
 
   // ==========================================
+  // REORDER CATEGORIES
+  // ==========================================
+  async reorderCategories(req, res) {
+    try {
+      const { orderedIds } = req.body;
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "Invalid orderedIds array." });
+      }
+      await hemlineService.reorderCategories(orderedIds);
+      res.status(200).json({ success: true, message: "Categories reordered successfully!" });
+    } catch (error) {
+      console.error("Reorder Hemline Categories Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
+  // REORDER OPTIONS
+  // ==========================================
+  async reorderOptions(req, res) {
+    try {
+      const { orderedIds } = req.body;
+      if (!orderedIds || !Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "Invalid orderedIds array." });
+      }
+      await hemlineService.reorderOptions(orderedIds);
+      res.status(200).json({ success: true, message: "Options reordered successfully!" });
+    } catch (error) {
+      console.error("Reorder Hemline Options Error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
+
+  // ==========================================
   // 👕 OPTION APIs (Child) - WITH LAYERS UPLOAD
   // ==========================================
 
@@ -73,9 +107,9 @@ class HemlineController {
       // Agar frontend ne 'layerImages' ke naam se files bheji hain
       if (req.files && req.files.layerImages && req.files.layerImages.length > 0) {
         req.files.layerImages.forEach((file, index) => {
-          // Hum assume kar rahe hain frontend usi tarteeb (order) mein files bhejega jis tarteeb mein JSON bheja hai
-          if (parsedLayers[index]) {
-            parsedLayers[index].svgUrl = file.path; // Cloudinary URL yahan set ho gaya!
+          // Admin placeholder.svg ignore karo taake existing svgUrl overwrite na ho
+          if (parsedLayers[index] && file.originalname !== 'placeholder.svg') {
+            parsedLayers[index].svgUrl = file.path;
           }
         });
       }
@@ -107,8 +141,9 @@ class HemlineController {
       // ✨ Update ke waqt bhi Cloudinary URL mapping
       if (parsedLayers && req.files && req.files.layerImages && req.files.layerImages.length > 0) {
         req.files.layerImages.forEach((file, index) => {
-          if (parsedLayers[index]) {
-            parsedLayers[index].svgUrl = file.path; 
+          // Admin placeholder.svg ignore karo taake existing svgUrl overwrite na ho
+          if (parsedLayers[index] && file.originalname !== 'placeholder.svg') {
+            parsedLayers[index].svgUrl = file.path;
           }
         });
       }
