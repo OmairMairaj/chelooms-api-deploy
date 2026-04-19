@@ -101,22 +101,54 @@ const cartController = {
         
       } else if (itemType === 'design_bundle') {
         
-        // --- B. CUSTOM DESIGN FLOW (SIZING APPLIES HERE) ---
-        // const design = await prisma.design.findUnique({ 
-        //   where: { id: itemId },
-        //   include: { product: true } // Base product price ke liye
-        // });
+// --- B. CUSTOM DESIGN FLOW (SMART INVENTORY CHECK) ---
         
-        // if (!design) return res.status(404).json({ success: false, message: "Design not found" });
+        // 1. Fetch Saved Design & Base Product
+        const design = await prisma.savedDesign.findUnique({ 
+          where: { saveDesignId: itemId }, // itemId yahan Postman se aayegi
+          include: { product: true } 
+        });
+        
+        if (!design) return res.status(404).json({ success: false, message: "Custom design not found" });
 
-        // unitPrice = design.product ? parseFloat(design.product.base_stitching_price) : 5000; // Fallback price
-        // itemName = design.name || "Custom Design Outfit";
-        // finalDesignId = itemId;
+        // 2. Parse JSON Canvas Data
+        let canvas = design.canvasData;
+        if (typeof canvas === 'string') canvas = JSON.parse(canvas);
 
-        //for testing
-        unitPrice = 5000; // Fake Price
-        itemName = "Test Custom Outfit (Dummy)";
-        finalDesignId = null;
+        // Frontend jis format mein fabric ID bhejta hai, wo yahan adjust kar lein (e.g., canvas.fabricId)
+        const fabricId = canvas.fabricId || (canvas.fabric ? canvas.fabric.id : null); 
+        
+        if (!fabricId) {
+           return res.status(400).json({ success: false, message: "Design must have a base fabric selected." });
+        }
+
+        // 3. 🚨 INVENTORY PRE-CHECK (Meters Calculation) 🚨
+        const fabricInventory = await prisma.inventoryItem.findUnique({ where: { id: fabricId } });
+        
+        if (!fabricInventory) return res.status(404).json({ success: false, message: "Selected fabric is not available in inventory." });
+
+        // Nayi field jo humne add ki thi (Agar DB mein na ho toh default 2.5 meter)
+        const consumptionPerSuit = parseFloat(design.product.fabricConsumption || 2.5); 
+        const totalMetersRequired = consumptionPerSuit * quantity; // Agar 2 suit hain, toh 5 meter check karega
+        
+        const availableStock = parseFloat(fabricInventory.stockQuantity);
+
+        if (availableStock < totalMetersRequired) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Out of stock! You need ${totalMetersRequired} meters, but only ${availableStock} meters of '${fabricInventory.name}' are left.` 
+          });
+        }
+
+        // 4. Dynamic Pricing Calculation
+        // Formula: Base Stitching Price + Premium Fabric Price
+        // (Embellishments ki price bhi yahan add kar sakte hain loop laga kar)
+        const basePrice = parseFloat(design.product.baseStitchingPrice || 5000);
+        const fabricPremium = parseFloat(fabricInventory.price || 0); // Agar kapday ki extra cost hai
+
+        unitPrice = basePrice + fabricPremium; 
+        itemName = design.designName || "Custom Outfit";
+        finalDesignId = design.saveDesignId;
 ////////////////////////////////////////////////////////////
         // Yahan Sizing Zaroori Hai!
         if (sizingMethod === 'Standard_Preset' && standardSizeId) {
@@ -237,7 +269,6 @@ const cartController = {
     
   },
 
-// 3. UPDATE ITEM QUANTITY
 // updateCartItem: async (req, res) => {
 //     try {
 //         const userId = req.user ? req.user.user_id : null;

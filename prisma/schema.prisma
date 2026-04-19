@@ -760,6 +760,8 @@ model Product {
   // ==================================================
   // JSON format: { fabric: { option_1_id: "..." }, neckline: { ... } }
   defaultDesign                 Json     @map("default_design")
+  
+ fabricConsumption Decimal @default(2.5) @db.Decimal(4, 2) // Example: 2.5 meters
 
   savedDesigns  SavedDesign[]
 

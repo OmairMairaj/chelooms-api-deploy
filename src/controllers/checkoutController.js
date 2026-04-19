@@ -307,89 +307,7 @@ const checkoutController = {
   },
 
   
-  // placeOrder: async (req, res) => {
-  //   try {
-  //     const userId = req.user.user_id;
-  //     const { paymentMethod } = req.body; // e.g., "COD"
-
-  //     // 1. Order aur Items nikalo
-  //     const order = await prisma.order.findFirst({
-  //       where: { user_id: userId, operationalStatus: 'checkout_draft' },
-  //       include: { items: true }
-  //     });
-
-  //     if (!order) return res.status(404).json({ success: false, message: "Cart not found" });
-
-  //     // RULE: OTP Verification Zaroori Hai
-  //     if (!order.isContactVerified) {
-  //       return res.status(403).json({ success: false, message: "Please verify your phone number first." });
-  //     }
-
-  //     // RULE: Generate Readable ID (e.g., JT-20260224-0042)
-  //     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, ''); // 20260224
-  //     const randomSuffix = Math.floor(1000 + Math.random() * 9000); // 4 digit random
-  //     const readableId = `JT-${dateStr}-${randomSuffix}`;
-
-  //     // --- ATOMIC TRANSACTION START (Sab kuch ek saath hoga) ---
-  //     // Agar inventory minus nahi hui, toh order place nahi hoga.
-  //     await prisma.$transaction(async (tx) => {
-        
-  //       // A. Inventory Lock (Stock Minus Karo) - "Read Must" Rule
-  //       for (const item of order.items) {
-  //         if (item.inventoryItemId) {
-  //           await tx.inventoryItem.update({
-  //             where: { id: item.inventoryItemId },
-  //             data: { 
-  //               stockQuantity: { decrement: item.quantity } // Stock kam karo
-  //             }
-  //           });
-  //         }
-  //       }
-
-  //       // B. Finalize Order Status
-  //       await tx.order.update({
-  //         where: { id: order.id },
-  //         data: {
-  //           readableId: readableId,
-  //           operationalStatus: 'pending_payment', // Draft se hat kar asal Order ban gaya
-  //           paymentMethod: paymentMethod || 'COD',
-  //           paymentStatus: 'unpaid',
-  //           placedAt: new Date()
-  //         }
-  //       });
-
-  //       // C. Create Timeline Event (Audit Trail)
-  //       await tx.orderTimeline.create({
-  //         data: {
-  //           orderId: order.id,
-  //           statusFrom: 'checkout_draft',
-  //           statusTo: 'pending_payment',
-  //           description: `Order Placed successfully via ${paymentMethod || 'COD'}`,
-  //           actorName: 'User'
-  //         }
-  //       });
-
-  //     }); 
-  //     // --- TRANSACTION END ---
-
-  //     // Success Response (Figma Screen 6 walo ke liye)
-  //     res.status(200).json({
-  //       success: true,
-  //       message: "Order Placed Successfully! 🎉",
-  //       orderId: readableId,
-  //       nextStep: "Show Thank You Screen"
-  //     });
-
-  //   } catch (error) {
-  //     console.error("Place Order Error:", error);
-  //     // Prisma P2025 error tab aata hai agar stock minus karte waqt item na mile
-  //     // Ya agar stock negative hone lage (Check Constraint)
-  //     res.status(500).json({ success: false, error: "Order Failed: " + error.message });
-  //   }
-  // }
-
-  // --- STEP 4: PLACE FINAL ORDER (With Full Summary) ---
-  placeOrder: async (req, res) => {
+    placeOrder: async (req, res) => {
     try {
       const userId = req.user.user_id; // Token se aaya
       const { paymentMethod } = req.body; 
@@ -412,14 +330,52 @@ const checkoutController = {
       const readableId = `JT-${dateStr}-${randomSuffix}`;
 
       // --- ATOMIC TRANSACTION (Stock Update + Status Change) ---
+      // await prisma.$transaction(async (tx) => {
+      //   // A. Inventory Lock
+      //   for (const item of order.items) {
+      //     if (item.inventoryItemId) {
+      //       await tx.inventoryItem.update({
+      //         where: { id: item.inventoryItemId },
+      //         data: { stockQuantity: { decrement: item.quantity } }
+      //       });
+      //     }
+      //   }
+
       await prisma.$transaction(async (tx) => {
-        // A. Inventory Lock
+          
+        // A. Inventory Lock (SMART DEDUCTION)
         for (const item of order.items) {
+          
+          // Scenario 1: Normal Items (Raw Fabric / Embellishments)
           if (item.inventoryItemId) {
             await tx.inventoryItem.update({
               where: { id: item.inventoryItemId },
-              data: { stockQuantity: { decrement: item.quantity } }
+              data: { stockQuantity: { decrement: parseFloat(item.quantity) } }
             });
+          }
+          
+          // Scenario 2: Custom Design Bundle 
+          else if (item.itemType === 'design_bundle' && item.designId) {
+            // 1. Step 1 mein save kiye gaye Sizing Attributes nikalen
+            const attrs = item.attributes || {};
+            const fabricId = attrs.fabricId;
+            
+            // Agar consumption saved nahi hai toh safety ke liye 2.5 default le lein
+            const consumption = attrs.consumptionPerSuit ? parseFloat(attrs.consumptionPerSuit) : 2.5; 
+
+            if (fabricId) {
+              // 2. Exact meters calculate karein (Consumption * Number of Suits)
+              const totalMetersToDeduct = consumption * parseFloat(item.quantity);
+              
+              // 3. Main Godaam (Inventory) se Meters minus kar dein
+              await tx.inventoryItem.update({
+                where: { id: fabricId },
+                data: { stockQuantity: { decrement: totalMetersToDeduct } } 
+              });
+              
+              // 💡 Agar future mein buttons ya laces bhi minus karni hon, 
+              // toh unki loop bhi yahan lag sakti hai.
+            }
           }
         }
 
