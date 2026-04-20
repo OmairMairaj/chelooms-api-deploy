@@ -13,7 +13,7 @@ const savedDesignController = {
       }
 
       // 2. Extract Data from Body
-      const { productId, designName, canvasData, status } = req.body;
+      const { productId, designName, canvasData, status, aspectRatio } = req.body;
       console.log(`👉 [SAVE DESIGN] Step 2: Data received for Product ID: ${productId}`);
 
       // 3. Validation
@@ -58,7 +58,8 @@ const savedDesignController = {
         designName,
         canvasData: parsedCanvasData,
         status,
-        thumbnailUrl
+        thumbnailUrl,
+        aspectRatio // service coerces to number with 1.0 fallback
       };
 
       console.log("👉 [SAVE DESIGN] Step 5: Sending data to Service layer...");
