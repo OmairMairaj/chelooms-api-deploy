@@ -53,7 +53,7 @@ const savedDesignService = {
           thumbnailUrl: data.thumbnailUrl || null,
           
           // 🚨 NAYI FIELDS YAHAN MAP KI HAIN 🚨
-          aspectRatio: aspectRatio, 
+          //aspectRatio: aspectRatio, 
           basePrice: data.basePrice,
           addOnPrice: data.addOnPrice,
           finalPrice: data.finalPrice,

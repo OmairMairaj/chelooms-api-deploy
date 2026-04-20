@@ -152,7 +152,7 @@ const savedDesignController = {
         canvasData: parsedCanvasData,
         status,
         thumbnailUrl,
-        aspectRatio, // service coerces to number
+        //aspectRatio, // service coerces to number
         basePrice: parsedBasePrice,
         addOnPrice: parsedAddOnPrice,
         finalPrice: parsedFinalPrice,
