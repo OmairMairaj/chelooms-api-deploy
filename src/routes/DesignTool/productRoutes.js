@@ -35,4 +35,14 @@ router.get('/category/:categoryName', productController.getProductsByCategory);
 // 🛒 E-COM ROUTE: GET ALL PRODUCTS GROUPED BY CATEGORY
 router.get('/grouped/categories', productController.getAllGroupedProducts);
 
+// Get all products (Admin ke liye)
+router.get('/admin/products', productController.getAllProducts);
+
+// Update product
+router.patch(
+  '/admin/products/:id', 
+  upload.any(), // Ya upload.fields() jo aapne create mein use kiya tha
+  productController.updateProduct
+);
+
 module.exports = router;

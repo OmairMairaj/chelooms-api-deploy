@@ -31,6 +31,49 @@ class ProductService {
     return product;
   }
 
+  async updateProduct(id, updateData) {
+    // Check if product exists
+    const existingProduct = await prisma.product.findUnique({ where: { id } });
+    if (!existingProduct) {
+      throw new Error("Product not found");
+    }
+
+    // Update product
+    const updatedProduct = await prisma.product.update({
+      where: { id },
+      data: updateData
+    });
+
+    return updatedProduct;
+  }
+
+  // Get Products for Admin Dashboard
+  async getAllProducts(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+
+    const products = await prisma.product.findMany({
+      skip: skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' }, // Naye products sabse upar
+      include: {
+        productCategory: {
+          select: { name: true } // Admin table mein dikhane ke liye category name
+        }
+      }
+    });
+
+    const total = await prisma.product.count();
+
+    return {
+      products,
+      meta: {
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
+
   // ==================================================
   // 🧠 THE MASTER ASSEMBLY API (For E-com Frontend)
   // ==================================================

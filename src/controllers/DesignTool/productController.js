@@ -81,6 +81,94 @@ class ProductController {
     }
   }
 
+  async updateProduct(req, res) {
+    try {
+      const { id } = req.params;
+
+      // 1. Image Extraction Logic (Agar nayi files aayi hain)
+      let newImagesList = [];
+      let newThumbnailsList = [];
+
+      if (req.files && Array.isArray(req.files)) {
+        req.files.forEach(file => {
+          if (file.fieldname === 'images') {
+            newImagesList.push(file.path || file.secure_url);
+          } else if (file.fieldname === 'thumbnails') {
+            newThumbnailsList.push(file.path || file.secure_url);
+          }
+        });
+      }
+
+      // 2. Data Mapping for Update
+      let updateData = {};
+
+      // Basic Fields (Agar frontend ne bheji hain toh update karo)
+      if (req.body.name) updateData.name = req.body.name.trim();
+      if (req.body.productCategoryId) updateData.productCategoryId = req.body.productCategoryId.trim();
+      if (req.body.pieceType) updateData.pieceType = req.body.pieceType.trim();
+      if (req.body.baseStitchingPrice) updateData.baseStitchingPrice = parseFloat(req.body.baseStitchingPrice);
+      if (req.body.status) updateData.status = req.body.status;
+
+      // Images Handle karna (Purani images + Nayi images merge karna)
+      // Frontend ko chahiye ke jo purani images rakhni hain wo "existingImages" aur "existingThumbnails" ke array mein bheje
+      if (req.body.existingImages || newImagesList.length > 0) {
+        const existingImages = parseArray(req.body.existingImages) || [];
+        updateData.images = [...existingImages, ...newImagesList];
+      }
+      
+      if (req.body.existingThumbnails || newThumbnailsList.length > 0) {
+        const existingThumbnails = parseArray(req.body.existingThumbnails) || [];
+        updateData.thumbnails = [...existingThumbnails, ...newThumbnailsList];
+      }
+
+      // Arrays & JSON Handle karna (Agar aaye hain toh overwrite karenge)
+      if (req.body.seasonTags) updateData.seasonTags = parseArray(req.body.seasonTags);
+      if (req.body.allowedFabricIds) updateData.allowedFabricIds = parseArray(req.body.allowedFabricIds);
+      if (req.body.allowedNecklineOptionIds) updateData.allowedNecklineOptionIds = parseArray(req.body.allowedNecklineOptionIds);
+      if (req.body.allowedSleeveOptionIds) updateData.allowedSleeveOptionIds = parseArray(req.body.allowedSleeveOptionIds);
+      if (req.body.allowedHemlineOptionIds) updateData.allowedHemlineOptionIds = parseArray(req.body.allowedHemlineOptionIds);
+      if (req.body.allowedSideSlitIds) updateData.allowedSideSlitIds = parseArray(req.body.allowedSideSlitIds);
+      if (req.body.allowedEmbellishmentOptionIds) updateData.allowedEmbellishmentOptionIds = parseArray(req.body.allowedEmbellishmentOptionIds);
+      
+      if (req.body.defaultDesign) updateData.defaultDesign = parseJson(req.body.defaultDesign);
+
+      // 3. Service call
+      const updatedProduct = await productService.updateProduct(id, updateData);
+
+      res.status(200).json({
+        success: true,
+        message: "Product Updated Successfully",
+        data: updatedProduct
+      });
+
+    } catch (error) {
+      console.error("Product Update Error:", error);
+      if (error.message === "Product not found") {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
+    }
+  }
+
+  async getAllProducts(req, res) {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+
+      const result = await productService.getAllProducts(page, limit);
+
+      res.status(200).json({
+        success: true,
+        message: "Products fetched successfully",
+        data: result.products,
+        meta: result.meta
+      });
+    } catch (error) {
+      console.error("Get All Products Error:", error);
+      res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
+    }
+  }
+
   // GET /api/products/:id/canvas
   // Public Route for E-commerce Frontend
   async getProductForCanvas(req, res) {
