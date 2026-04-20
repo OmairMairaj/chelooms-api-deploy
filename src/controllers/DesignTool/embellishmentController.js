@@ -158,25 +158,34 @@ class EmbellishmentController {
       if (payload.premiumPrice !== undefined) payload.premiumPrice = parseFloat(payload.premiumPrice);
 
       let overlays = typeof payload.overlays === 'string' ? JSON.parse(payload.overlays) : undefined;
+      const overlaysTouched = overlays !== undefined;
 
       if (req.files && req.files.length > 0) {
         let optionImages = [];
-        if (!overlays) overlays = {}; // Safety check
-        
+
+        const hasOverlayUploads = req.files.some(f => f.fieldname && f.fieldname.startsWith('overlay_'));
+        if (hasOverlayUploads && overlays === undefined) {
+          const existing = await embellishmentService.getOptionById(id);
+          overlays = (existing?.overlays && typeof existing.overlays === 'object' && !Array.isArray(existing.overlays))
+            ? JSON.parse(JSON.stringify(existing.overlays))
+            : {};
+        }
+
         req.files.forEach(file => {
           if (file.fieldname === 'images') {
             optionImages.push(file.path);
           } else if (file.fieldname.startsWith('overlay_')) {
-            const rest = file.fieldname.substring('overlay_'.length); 
+            const rest = file.fieldname.substring('overlay_'.length);
             const firstUnderscore = rest.indexOf('_');
-            
-            if (firstUnderscore !== -1) {
-              const bodyPart = rest.substring(0, firstUnderscore); 
-              const targetId = rest.substring(firstUnderscore + 1); 
 
+            if (firstUnderscore !== -1) {
+              const bodyPart = rest.substring(0, firstUnderscore);
+              const targetId = rest.substring(firstUnderscore + 1);
+
+              if (!overlays) overlays = {};
               if (!overlays[bodyPart]) overlays[bodyPart] = {};
               if (!overlays[bodyPart][targetId]) overlays[bodyPart][targetId] = {};
-              
+
               overlays[bodyPart][targetId].svgUrl = file.path;
             }
           }
@@ -185,7 +194,28 @@ class EmbellishmentController {
         if (optionImages.length > 0) payload.images = optionImages;
       }
 
-      if (overlays) payload.overlays = overlays;
+      // Defensive merge: for any (bodyPart, targetId) whose svgUrl is empty/missing in the
+      // incoming JSON, restore the existing DB URL for the SAME key. New file uploads are
+      // already written into overlays above, so they always win over DB values.
+      if (overlaysTouched || (overlays && Object.keys(overlays).length > 0)) {
+        const existing = await embellishmentService.getOptionById(id);
+        const existingOverlays = (existing?.overlays && typeof existing.overlays === 'object' && !Array.isArray(existing.overlays))
+          ? existing.overlays
+          : {};
+
+        Object.keys(overlays || {}).forEach(bodyPart => {
+          const byTarget = overlays[bodyPart] || {};
+          Object.keys(byTarget).forEach(targetId => {
+            const incomingUrl = byTarget[targetId]?.svgUrl;
+            const existingUrl = existingOverlays?.[bodyPart]?.[targetId]?.svgUrl;
+            if ((!incomingUrl || incomingUrl === "") && existingUrl) {
+              overlays[bodyPart][targetId].svgUrl = existingUrl;
+            }
+          });
+        });
+
+        payload.overlays = overlays;
+      }
 
       const updatedOption = await embellishmentService.updateOption(id, payload);
       res.status(200).json({ success: true, message: "Embellishment Option Updated!", data: updatedOption });

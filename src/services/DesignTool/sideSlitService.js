@@ -39,6 +39,13 @@ class SideSlitService {
     }));
   }
 
+  // 2b. Get a single Side Slit raw record by ID (used by update merge logic)
+  async getSideSlitById(id) {
+    return await prisma.sideSlit.findUnique({
+      where: { sideSlitId: id }
+    });
+  }
+
   // 3. Reorder Side Slits
   async reorderSideSlits(orderedIds) {
     // We map over the array of IDs and create an update command for each one

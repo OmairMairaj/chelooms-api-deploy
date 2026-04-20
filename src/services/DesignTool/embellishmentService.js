@@ -96,6 +96,13 @@ class EmbellishmentService {
     });
   }
 
+  // Fetch a single embellishment option raw record (used by update merge logic)
+  async getOptionById(id) {
+    return await prisma.embellishmentOption.findUnique({
+      where: { optionId: id }
+    });
+  }
+
   // ==========================================
   // REORDER OPTIONS
   // ==========================================

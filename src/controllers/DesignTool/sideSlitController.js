@@ -114,14 +114,23 @@ class SideSlitController {
       if (typeof payload.tags === 'string') payload.tags = JSON.parse(payload.tags);
       if (typeof payload.allowedHemlineShapes === 'string') payload.allowedHemlineShapes = JSON.parse(payload.allowedHemlineShapes);
       
+      // Parse any cutouts JSON the admin UI sent (authoritative list of rows that should exist).
       let cutouts = typeof payload.cutouts === 'string' ? JSON.parse(payload.cutouts) : undefined;
+      const cutoutsTouched = cutouts !== undefined;
+
+      let mainImage = [];
+      let optionImages = [];
 
       if (req.files && req.files.length > 0) {
-        let mainImage = [];
-        let optionImages = [];
-        
-        if (!cutouts) cutouts = {}; // Update mein agar naya cutout add ho raha ho
-        
+        // If only file uploads came in (no JSON), seed from DB so sibling entries aren't wiped.
+        const hasCutoutUploads = req.files.some(f => f.fieldname && f.fieldname.startsWith('cutout_'));
+        if (hasCutoutUploads && cutouts === undefined) {
+          const existing = await sideSlitService.getSideSlitById(id);
+          cutouts = (existing?.cutouts && typeof existing.cutouts === 'object' && !Array.isArray(existing.cutouts))
+            ? JSON.parse(JSON.stringify(existing.cutouts))
+            : {};
+        }
+
         req.files.forEach(file => {
           if (file.fieldname === 'image') mainImage.push(file.path);
           else if (file.fieldname === 'images') optionImages.push(file.path);
@@ -130,10 +139,9 @@ class SideSlitController {
             if (parts.length === 3) {
               const length = parts[1];
               const shape = parts[2];
-              
+              if (!cutouts) cutouts = {};
               if (!cutouts[length]) cutouts[length] = {};
               if (!cutouts[length][shape]) cutouts[length][shape] = {};
-              
               cutouts[length][shape].svgUrl = file.path;
             }
           }
@@ -143,7 +151,29 @@ class SideSlitController {
         if (optionImages.length > 0) payload.images = optionImages;
       }
 
-      if (cutouts) payload.cutouts = cutouts;
+      // Defensive merge: for any slot whose svgUrl is empty/missing in the incoming JSON,
+      // restore the existing DB URL for the SAME (length, shape) key. This protects against
+      // the admin UI ever sending blank placeholders by mistake. New file uploads always win
+      // because they were written into `cutouts` above BEFORE this merge runs.
+      if (cutoutsTouched || (cutouts && Object.keys(cutouts).length > 0)) {
+        const existing = await sideSlitService.getSideSlitById(id);
+        const existingCutouts = (existing?.cutouts && typeof existing.cutouts === 'object' && !Array.isArray(existing.cutouts))
+          ? existing.cutouts
+          : {};
+
+        Object.keys(cutouts || {}).forEach(lengthKey => {
+          const shapesObj = cutouts[lengthKey] || {};
+          Object.keys(shapesObj).forEach(shapeKey => {
+            const incomingUrl = shapesObj[shapeKey]?.svgUrl;
+            const existingUrl = existingCutouts?.[lengthKey]?.[shapeKey]?.svgUrl;
+            if ((!incomingUrl || incomingUrl === "") && existingUrl) {
+              cutouts[lengthKey][shapeKey].svgUrl = existingUrl;
+            }
+          });
+        });
+
+        payload.cutouts = cutouts;
+      }
 
       const updatedSideSlit = await sideSlitService.updateSideSlit(id, payload);
       res.status(200).json({ success: true, message: "Side Slit Updated!", data: updatedSideSlit });

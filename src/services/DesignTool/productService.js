@@ -135,6 +135,10 @@ class ProductService {
         // Child Option map
         grouped[cat.categoryId].options.push({
           id: opt.frontendId || opt.optionId,
+          // Expose both aliases so callers (e.g. default_design translator)
+          // can reconcile options saved by either identifier.
+          optionId: opt.optionId,
+          frontendId: opt.frontendId || null,
           name: opt.name,
           type: opt.type || "subtractive",
           hasButtons: opt.hasButtons || false,
@@ -142,7 +146,10 @@ class ProductService {
           keywords: opt.keywords || [],
           tags: opt.tags || [],
           layers: opt.layers || [],
-          premium: opt.isPremium || false,
+          // Neckline/Sleeve/Hemline option models expose `isPremium` (@map("premium"));
+          // EmbellishmentOption exposes `premium` directly. Read either so this helper
+          // stays correct for all four shapes.
+          premium: (opt.isPremium ?? opt.premium) || false,
           premium_price: opt.premiumPrice || null,
           overlays: opt.overlays || undefined, // For embellishments
           shapeTag: opt.shapeTag || undefined,
@@ -210,6 +217,9 @@ class ProductService {
       });
       sideSlitsData = sideSlits.map(slit => ({
         id: slit.frontendId || slit.sideSlitId,
+        // Alias fields used by the default_design translator.
+        sideSlitId: slit.sideSlitId,
+        frontendId: slit.frontendId || null,
         name: slit.name,
         image: slit.image || [],
         images: slit.images || [],
@@ -283,7 +293,84 @@ class ProductService {
       },
 
       piece_type: product.pieceType,
-      default_design: product.defaultDesign
+      // The stored defaultDesign may reference options by their DB UUID
+      // (admin save) while the canvas exposes `id = frontendId || optionId`.
+      // Translate each entry so the frontend's equality check lines up.
+      default_design: this._translateDefaultDesignIds(product.defaultDesign, {
+        fabrics: fabricsData,
+        necklines: necklinesData,
+        sleeves: sleevesData,
+        hemline: hemlinesData,
+        side_slits: sideSlitsData,
+        embellishments: embellishmentsData
+      })
+    };
+  }
+
+  // Maps any option_id (UUID or frontendId) in the stored defaultDesign to the
+  // canonical `id` the canvas response exposes (= frontendId || optionId).
+  // This makes the canvas resilient to whichever identifier the admin saved.
+  _translateDefaultDesignIds(defaultDesign, canvasGroups) {
+    if (!defaultDesign || typeof defaultDesign !== 'object') return defaultDesign || {};
+
+    const flattenOptions = (groups) =>
+      (Array.isArray(groups) ? groups : []).flatMap(g => Array.isArray(g?.options) ? g.options : []);
+
+    // Each group bucket we resolved in canvas: [fabricsData], [necklinesData], ...
+    // fabricsData is already a flat array; the rest are { id, options }[]
+    const buckets = {
+      fabric: Array.isArray(canvasGroups.fabrics) ? canvasGroups.fabrics : [],
+      neckline: flattenOptions(canvasGroups.necklines),
+      sleeve: flattenOptions(canvasGroups.sleeves),
+      hemline: flattenOptions(canvasGroups.hemline),
+      sideSlit: Array.isArray(canvasGroups.side_slits) ? canvasGroups.side_slits : [],
+      embellishment: flattenOptions(canvasGroups.embellishments)
+    };
+
+    // For each bucket, build: { uuidOrFrontendId -> canvasId }
+    // The canvas `id` is already frontendId || optionId, so mapping is just
+    // "any known alias" -> opt.id. We intentionally include opt.id too so
+    // re-translating is idempotent.
+    const buildAliasMap = (options) => {
+      const map = new Map();
+      for (const opt of options) {
+        const canonical = opt?.id;
+        if (!canonical) continue;
+        map.set(canonical, canonical);
+        if (opt.optionId) map.set(opt.optionId, canonical);
+        if (opt.frontendId) map.set(opt.frontendId, canonical);
+        if (opt.sideSlitId) map.set(opt.sideSlitId, canonical);
+      }
+      return map;
+    };
+
+    const maps = {
+      fabric: buildAliasMap(buckets.fabric),
+      neckline: buildAliasMap(buckets.neckline),
+      sleeve: buildAliasMap(buckets.sleeve),
+      hemline: buildAliasMap(buckets.hemline),
+      sideSlit: buildAliasMap(buckets.sideSlit),
+      embellishment: buildAliasMap(buckets.embellishment)
+    };
+
+    const translateEntry = (entry, mapKey) => {
+      if (!entry || typeof entry !== 'object') return entry;
+      const id = entry.option_id;
+      if (!id) return entry;
+      const translated = maps[mapKey]?.get(id);
+      return translated ? { ...entry, option_id: translated } : entry;
+    };
+
+    return {
+      ...defaultDesign,
+      fabric: translateEntry(defaultDesign.fabric, 'fabric'),
+      neckline: translateEntry(defaultDesign.neckline, 'neckline'),
+      sleeve: translateEntry(defaultDesign.sleeve, 'sleeve'),
+      sleeves: translateEntry(defaultDesign.sleeves, 'sleeve'),
+      hemline: translateEntry(defaultDesign.hemline, 'hemline'),
+      sideSlit: translateEntry(defaultDesign.sideSlit, 'sideSlit'),
+      side_slits: translateEntry(defaultDesign.side_slits, 'sideSlit'),
+      embellishment: translateEntry(defaultDesign.embellishment, 'embellishment')
     };
   }
 
