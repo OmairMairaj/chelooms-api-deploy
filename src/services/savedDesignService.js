@@ -19,7 +19,7 @@ const savedDesignService = {
           canvasData: data.canvasData, // Yeh poora JSON object hoga
           status: data.status || "private",
           thumbnailUrl: data.thumbnailUrl || null,
-          aspectRatio
+          //aspectRatio
         }
       });
 

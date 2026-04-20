@@ -20,7 +20,23 @@ const getMyOrderHistory = async (req, res) => {
     }
 };
 
+/** Admin / inventory: all orders for panel (paginated + filters) */
+const getAllOrdersAdmin = async (req, res) => {
+    try {
+        const result = await orderService.getAdminOrdersList(req.query);
+        res.status(200).json({
+            success: true,
+            message: "Orders fetched successfully",
+            data: result.orders,
+            meta: result.meta,
+        });
+    } catch (error) {
+        console.error("Error fetching admin orders:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
-    // baki controllers...
-    getMyOrderHistory
+    getMyOrderHistory,
+    getAllOrdersAdmin,
 };
