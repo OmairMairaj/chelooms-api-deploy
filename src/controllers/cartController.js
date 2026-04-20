@@ -116,7 +116,9 @@ const cartController = {
         if (typeof canvas === 'string') canvas = JSON.parse(canvas);
 
         // Frontend jis format mein fabric ID bhejta hai, wo yahan adjust kar lein (e.g., canvas.fabricId)
-        const fabricId = canvas.fabricId || (canvas.fabric ? canvas.fabric.id : null); 
+        //const fabricId = canvas.fabricId || (canvas.fabric ? canvas.fabric.id : null); 
+        // Nayi line: Frontend ke JSON structure ke hisaab se
+        const fabricId = canvas.fabric?.option_1_id || canvas.fabricId || canvas.fabric?.id;
         
         if (!fabricId) {
            return res.status(400).json({ success: false, message: "Design must have a base fabric selected." });
