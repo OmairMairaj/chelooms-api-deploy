@@ -1,5 +1,10 @@
 const transporter = require('../config/emailConfig');
-const { welcomeTemplate, forgotPasswordTemplate, accountCreatedTemplateByAdmin } = require('../utils/emailTemplates');
+const {
+  welcomeTemplate,
+  forgotPasswordTemplate,
+  accountCreatedTemplateByAdmin,
+  orderConfirmationTemplate,
+} = require('../utils/emailTemplates');
 
 // Generic Sender Function (Internal Use)
 const sendMail = async (to, subject, htmlContent) => {
@@ -36,10 +41,25 @@ const sendAccountCredentials = async (email, firstName, password) => {
     await sendMail(email, "Welcome to Chelooms - Account Details", html);
 };
 
+/** Sends order confirmation to customer; logs and swallows errors so checkout still succeeds. */
+const sendOrderConfirmationEmail = async (orderSummary) => {
+    const to = orderSummary?.email;
+    if (!to || !String(to).trim()) {
+        console.log('📭 Order confirmation skipped: no email on order');
+        return;
+    }
+    try {
+        const html = orderConfirmationTemplate(orderSummary);
+        const subject = `Order confirmed — ${orderSummary.orderId || 'your order'}`;
+        await sendMail(String(to).trim(), subject, html);
+    } catch (err) {
+        console.error('❌ Order confirmation email failed:', err.message);
+    }
+};
 
-
-module.exports = { 
-    sendWelcomeEmail, 
+module.exports = {
+    sendWelcomeEmail,
     sendPasswordResetOTP,
-    sendAccountCredentials
+    sendAccountCredentials,
+    sendOrderConfirmationEmail,
 };

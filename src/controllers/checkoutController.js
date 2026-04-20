@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const jwt = require('jsonwebtoken');
+const { sendOrderConfirmationEmail } = require('../services/emailService');
 
 const checkoutController = {
 
@@ -448,6 +449,8 @@ const checkoutController = {
           color: item.inventoryItem?.colorName || "Standard"
         }))
       };
+
+      await sendOrderConfirmationEmail(orderSummary);
 
       res.status(200).json({
         success: true,
