@@ -51,17 +51,19 @@ class ProductService {
   async getAllProducts(page = 1, limit = 10) {
     const skip = (page - 1) * limit;
 
+    // Koi filter nahi lagaya, taake A to Z sab products aayein (Active + Soft Deleted)
     const products = await prisma.product.findMany({
       skip: skip,
       take: limit,
-      orderBy: { createdAt: 'desc' }, // Naye products sabse upar
+      orderBy: { createdAt: 'desc' }, 
       include: {
         productCategory: {
-          select: { name: true } // Admin table mein dikhane ke liye category name
+          select: { name: true } 
         }
       }
     });
 
+    // Count bhi poore database ke products ka hoga
     const total = await prisma.product.count();
 
     return {
@@ -72,6 +74,41 @@ class ProductService {
         totalPages: Math.ceil(total / limit)
       }
     };
+  }
+
+  async deleteProduct(id, isHardDelete = false) {
+    const existingProduct = await prisma.product.findUnique({ where: { id } });
+    if (!existingProduct) {
+      throw new Error("Product not found");
+    }
+
+    if (isHardDelete) {
+      // 🚨 HARD DELETE: Database se hamesha ke liye delete
+      return await prisma.product.delete({
+        where: { id }
+      });
+    } else {
+      // 🗂️ SOFT DELETE: Sirf deletedAt mein timestamp daal do
+      return await prisma.product.update({
+        where: { id },
+        data: { 
+          deletedAt: new Date() // 👈 Yahan current time aayega
+        }
+      });
+    }
+  }
+
+  // ♻️ RESTORE PRODUCT (Reactivate)
+  async restoreProduct(id) {
+    const existingProduct = await prisma.product.findUnique({ where: { id } });
+    if (!existingProduct) {
+      throw new Error("Product not found");
+    }
+
+    return await prisma.product.update({
+      where: { id },
+      data: { deletedAt: null } // 👈 Dobara null kar diya, matlab active ho gaya!
+    });
   }
 
   // ==================================================

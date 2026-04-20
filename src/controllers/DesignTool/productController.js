@@ -169,6 +169,53 @@ class ProductController {
     }
   }
 
+  async deleteProduct(req, res) {
+    try {
+      const { id } = req.params;
+      
+      // Postman se query aayegi: ?hardDelete=true
+      const isHardDelete = req.query.hardDelete === 'true'; 
+
+      await productService.deleteProduct(id, isHardDelete);
+
+      // Response message change hoga delete type ke hisaab se
+      const message = isHardDelete 
+        ? "Product permanently deleted from database! 🚨" 
+        : "Product soft-deleted (Archived) successfully! 🗂️";
+
+      res.status(200).json({
+        success: true,
+        message: message
+      });
+
+    } catch (error) {
+      console.error("Delete Product Error:", error);
+      if (error.message === "Product not found") {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, error: "Internal Server Error", details: error.message });
+    }
+  }
+
+  // ♻️ RESTORE PRODUCT CONTROLLER
+  async restoreProduct(req, res) {
+    try {
+      const { id } = req.params;
+      await productService.restoreProduct(id);
+
+      res.status(200).json({
+        success: true,
+        message: "Product restored and activated successfully! ♻️"
+      });
+    } catch (error) {
+      console.error("Restore Product Error:", error);
+      if (error.message === "Product not found") {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      res.status(500).json({ success: false, error: "Internal Server Error" });
+    }
+  }
+
   // GET /api/products/:id/canvas
   // Public Route for E-commerce Frontend
   async getProductForCanvas(req, res) {

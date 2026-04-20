@@ -45,4 +45,20 @@ router.patch(
   productController.updateProduct
 );
 
+// DELETE product (Handle both Soft and Hard delete)
+router.delete(
+    '/admin/products/:id', 
+    protect, 
+    authorize('Administrator'), 
+    productController.deleteProduct
+  );
+
+  // Restore (Reactivate) a soft-deleted product
+router.patch(
+    '/admin/products/:id/restore', 
+    protect, 
+    authorize('Administrator'), 
+    productController.restoreProduct
+  );
+
 module.exports = router;

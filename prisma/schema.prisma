@@ -767,6 +767,7 @@ model Product {
 
   createdAt                     DateTime @default(now()) @db.Timestamptz
   updatedAt                     DateTime @updatedAt @db.Timestamptz
+  deletedAt DateTime?
 
   @@map("products")
 }
