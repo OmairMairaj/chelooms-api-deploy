@@ -1,6 +1,84 @@
 const savedDesignService = require('../services/savedDesignService');
 
 const savedDesignController = {
+  // async saveDesign(req, res) {
+  //   console.log("👉 [SAVE DESIGN] Step 1: Request hit the controller!");
+
+  //   try {
+  //     // 1. Get User ID from Auth Middleware
+  //     const userId = req.user ? req.user.user_id : null;
+  //     if (!userId) {
+  //       console.log("❌ [SAVE DESIGN] Error: Unauthorized. User ID missing.");
+  //       return res.status(401).json({ success: false, message: "Please login to save your design." });
+  //     }
+
+  //     // 2. Extract Data from Body
+  //     const { productId, designName, canvasData, status, aspectRatio } = req.body;
+  //     console.log(`👉 [SAVE DESIGN] Step 2: Data received for Product ID: ${productId}`);
+
+  //     // 3. Validation
+  //     if (!productId || !canvasData) {
+  //       console.log("❌ [SAVE DESIGN] Error: Missing Product ID or Canvas Data.");
+  //       return res.status(400).json({ success: false, message: "Product ID and Canvas Data are required." });
+  //     }
+
+  //     // 4. Handle Thumbnail Image (Agar frontend ne image file bheji hai)
+  //     // 4. Handle Thumbnail Image (Smart Check)
+  //     let thumbnailUrl = null;
+  //     console.log("🕵️ req.files PURA OBJECT:", JSON.stringify(req.files, null, 2));
+  //     // 🕵️ DEBUGGING: Console pe check karte hain multer ne file kahan rakhi hai
+  //     console.log("🕵️ Check req.file:", req.file ? "File Exists" : "Undefined");
+  //     console.log("🕵️ Check req.files:", req.files ? "Files Object Exists" : "Undefined");
+
+  //     if (req.file && req.file.path) {
+  //       // Scenario A: Agar route mein `upload.single('thumbnail')` lagaya hai
+  //       thumbnailUrl = req.file.path;
+  //       console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded via req.file");
+  //     } 
+  //     else if (req.files && req.files.thumbnail && req.files.thumbnail.length > 0) {
+  //       // Scenario B: Agar route mein `upload.fields([{ name: 'thumbnail' }])` lagaya hai
+  //       thumbnailUrl = req.files.thumbnail[0].path; 
+  //       console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded via req.files");
+  //     } 
+  //     else {
+  //       console.log("⚠️ [SAVE DESIGN] Step 3: No thumbnail image found in request.");
+  //     }
+
+  //     // 5. Parse JSON agar frontend ne stringify karke bheja ho
+  //     let parsedCanvasData = canvasData;
+  //     if (typeof canvasData === 'string') {
+  //       parsedCanvasData = JSON.parse(canvasData);
+  //     }
+  //     console.log("👉 [SAVE DESIGN] Step 4: Canvas Data parsed successfully.");
+
+  //     // 6. Pass Data to Service
+  //     const finalData = {
+  //       userId,
+  //       productId,
+  //       designName,
+  //       canvasData: parsedCanvasData,
+  //       status,
+  //       thumbnailUrl,
+  //       aspectRatio // service coerces to number with 1.0 fallback
+  //     };
+
+  //     console.log("👉 [SAVE DESIGN] Step 5: Sending data to Service layer...");
+  //     const savedDesign = await savedDesignService.saveNewDesign(finalData);
+
+  //     console.log("✅ [SAVE DESIGN] Step 6: Success! Design Saved.");
+  //     return res.status(201).json({
+  //       success: true,
+  //       message: "Your custom design has been saved successfully!",
+  //       data: savedDesign
+  //     });
+
+  //   } catch (error) {
+  //     console.error("❌ CRITICAL ERROR IN SAVE DESIGN CONTROLLER:");
+  //     console.error(error.stack);
+  //     return res.status(500).json({ success: false, error: error.message, stack: error.stack });
+  //   }
+  // },
+
   async saveDesign(req, res) {
     console.log("👉 [SAVE DESIGN] Step 1: Request hit the controller!");
 
@@ -12,8 +90,12 @@ const savedDesignController = {
         return res.status(401).json({ success: false, message: "Please login to save your design." });
       }
 
-      // 2. Extract Data from Body
-      const { productId, designName, canvasData, status, aspectRatio } = req.body;
+      // 2. Extract Data from Body (Nayi fields yahan add ki hain)
+      const { 
+        productId, designName, canvasData, status, aspectRatio,
+        basePrice, addOnPrice, finalPrice, currency, pricingBreakdown 
+      } = req.body;
+      
       console.log(`👉 [SAVE DESIGN] Step 2: Data received for Product ID: ${productId}`);
 
       // 3. Validation
@@ -22,21 +104,17 @@ const savedDesignController = {
         return res.status(400).json({ success: false, message: "Product ID and Canvas Data are required." });
       }
 
-      // 4. Handle Thumbnail Image (Agar frontend ne image file bheji hai)
       // 4. Handle Thumbnail Image (Smart Check)
       let thumbnailUrl = null;
       console.log("🕵️ req.files PURA OBJECT:", JSON.stringify(req.files, null, 2));
-      // 🕵️ DEBUGGING: Console pe check karte hain multer ne file kahan rakhi hai
       console.log("🕵️ Check req.file:", req.file ? "File Exists" : "Undefined");
       console.log("🕵️ Check req.files:", req.files ? "Files Object Exists" : "Undefined");
 
       if (req.file && req.file.path) {
-        // Scenario A: Agar route mein `upload.single('thumbnail')` lagaya hai
         thumbnailUrl = req.file.path;
         console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded via req.file");
       } 
       else if (req.files && req.files.thumbnail && req.files.thumbnail.length > 0) {
-        // Scenario B: Agar route mein `upload.fields([{ name: 'thumbnail' }])` lagaya hai
         thumbnailUrl = req.files.thumbnail[0].path; 
         console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded via req.files");
       } 
@@ -44,12 +122,27 @@ const savedDesignController = {
         console.log("⚠️ [SAVE DESIGN] Step 3: No thumbnail image found in request.");
       }
 
-      // 5. Parse JSON agar frontend ne stringify karke bheja ho
+      // 5. Parse JSON Data
       let parsedCanvasData = canvasData;
       if (typeof canvasData === 'string') {
         parsedCanvasData = JSON.parse(canvasData);
       }
-      console.log("👉 [SAVE DESIGN] Step 4: Canvas Data parsed successfully.");
+
+      // 🚨 NAYI FIELDS PARSING LOGIC 🚨
+      const parsedBasePrice = basePrice ? parseFloat(basePrice) : null;
+      const parsedAddOnPrice = addOnPrice ? parseFloat(addOnPrice) : null;
+      const parsedFinalPrice = finalPrice ? parseFloat(finalPrice) : null;
+      const parsedCurrency = currency || 'PKR';
+
+      let parsedBreakdown = null;
+      if (pricingBreakdown) {
+        try {
+          parsedBreakdown = typeof pricingBreakdown === 'string' ? JSON.parse(pricingBreakdown) : pricingBreakdown;
+        } catch (err) {
+          console.error("⚠️ [SAVE DESIGN] Error parsing pricingBreakdown:", err.message);
+        }
+      }
+      console.log("👉 [SAVE DESIGN] Step 4: Canvas & Pricing Data parsed successfully.");
 
       // 6. Pass Data to Service
       const finalData = {
@@ -59,7 +152,12 @@ const savedDesignController = {
         canvasData: parsedCanvasData,
         status,
         thumbnailUrl,
-        aspectRatio // service coerces to number with 1.0 fallback
+        aspectRatio, // service coerces to number
+        basePrice: parsedBasePrice,
+        addOnPrice: parsedAddOnPrice,
+        finalPrice: parsedFinalPrice,
+        currency: parsedCurrency,
+        pricingBreakdown: parsedBreakdown
       };
 
       console.log("👉 [SAVE DESIGN] Step 5: Sending data to Service layer...");
@@ -78,7 +176,6 @@ const savedDesignController = {
       return res.status(500).json({ success: false, error: error.message, stack: error.stack });
     }
   },
-
   async updateStatus(req, res) {
     const { id } = req.params; // URL se designId aayegi
     console.log(`👉 [UPDATE STATUS] Step 1: Request hit for Design ID: ${id}`);

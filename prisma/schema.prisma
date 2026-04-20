@@ -809,6 +809,11 @@ model SavedDesign {
 
   // 4. Status 
   status        String   @default("private")
+  basePrice        Float?
+  addOnPrice       Float?
+  finalPrice       Float?
+  currency         String?  @default("PKR")
+  pricingBreakdown Json?    // Array of objects save karne ke liye
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

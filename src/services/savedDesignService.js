@@ -2,6 +2,38 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const savedDesignService = {
+  // async saveNewDesign(data) {
+  //   try {
+  //     console.log("⚙️ [SERVICE] Attempting to save Custom Design in DB...");
+      
+  //     // Coerce aspectRatio: FormData delivers strings, keep a sane fallback so
+  //     // legacy callers (no ratio sent) still default to square.
+  //     const parsedRatio = Number(data.aspectRatio);
+  //     const aspectRatio = Number.isFinite(parsedRatio) && parsedRatio > 0 ? parsedRatio : 1.0;
+
+  //     const newDesign = await prisma.savedDesign.create({
+  //       data: {
+  //         userId: data.userId,
+  //         productId: data.productId,
+  //         designName: data.designName || "My Custom Design",
+  //         canvasData: data.canvasData, // Yeh poora JSON object hoga
+  //         status: data.status || "private",
+  //         thumbnailUrl: data.thumbnailUrl || null,
+  //         //aspectRatio
+  //       }
+  //     });
+
+  //     console.log("⚙️ [SERVICE] DB Save Successful! Design ID:", newDesign.saveDesignId);
+  //     return newDesign;
+      
+  //   } catch (dbError) {
+  //     console.error("🔥 DATABASE ERROR IN SAVE DESIGN:");
+  //     console.error(dbError);
+  //     throw new Error(`DB Save Error: ${dbError.message}`);
+  //   }
+  // },
+
+
   async saveNewDesign(data) {
     try {
       console.log("⚙️ [SERVICE] Attempting to save Custom Design in DB...");
@@ -19,7 +51,14 @@ const savedDesignService = {
           canvasData: data.canvasData, // Yeh poora JSON object hoga
           status: data.status || "private",
           thumbnailUrl: data.thumbnailUrl || null,
-          //aspectRatio
+          
+          // 🚨 NAYI FIELDS YAHAN MAP KI HAIN 🚨
+          aspectRatio: aspectRatio, 
+          basePrice: data.basePrice,
+          addOnPrice: data.addOnPrice,
+          finalPrice: data.finalPrice,
+          currency: data.currency,
+          pricingBreakdown: data.pricingBreakdown
         }
       });
 
@@ -32,7 +71,6 @@ const savedDesignService = {
       throw new Error(`DB Save Error: ${dbError.message}`);
     }
   },
-
   async updateDesignStatus(saveDesignId, userId, newStatus) {
     try {
       console.log(`⚙️ [SERVICE] Step A: Verifying ownership for Design ID: ${saveDesignId}`);
