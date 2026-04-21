@@ -142,13 +142,18 @@ const cartController = {
           });
         }
 
-        // 4. Dynamic Pricing Calculation
-        // Formula: Base Stitching Price + Premium Fabric Price
-        // (Embellishments ki price bhi yahan add kar sakte hain loop laga kar)
-        const basePrice = parseFloat(design.product.baseStitchingPrice || 5000);
-        const fabricPremium = parseFloat(fabricInventory.price || 0); // Agar kapday ki extra cost hai
-
-        unitPrice = basePrice + fabricPremium; 
+        // 4. Dynamic pricing
+        // Pehle SavedDesign.finalPrice (design tool / save par jo total bana tha) — yehi user ko dikhta hai.
+        // Agar na ho to: product.baseStitchingPrice + fabric list price (inventory).
+        // NOTE: Pehle `|| 5000` fallback ki wajah se order mein hamesha 5000+ dikhai deta tha jab base DB mein missing hota.
+        const savedTotal = design.finalPrice != null ? parseFloat(design.finalPrice) : NaN;
+        if (Number.isFinite(savedTotal) && savedTotal > 0) {
+          unitPrice = savedTotal;
+        } else {
+          const basePrice = parseFloat(design.product.baseStitchingPrice ?? 0);
+          const fabricPremium = parseFloat(fabricInventory.price ?? 0);
+          unitPrice = basePrice + fabricPremium;
+        }
         itemName = design.designName || "Custom Outfit";
         finalDesignId = design.saveDesignId;
 ////////////////////////////////////////////////////////////
