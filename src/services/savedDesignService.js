@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../config/db');
 
 const savedDesignService = {
   
@@ -124,37 +123,59 @@ const savedDesignService = {
     }
   },
 
-  async getAllPublishedDesigns(page = 1, limit = 10) {
+  // 👇 Naya parameter 'userId' add kiya (optional hai, taake bina login walay bhi gallery dekh sakein)
+  async getAllPublishedDesigns(page = 1, limit = 10, userId = null) {
     try {
-      console.log(`⚙️ [SERVICE] Fetching published designs. Page: ${page}, Limit: ${limit}`);
+      console.log(`⚙️ [SERVICE] Fetching published designs. Page: ${page}, Limit: ${limit}, User: ${userId}`);
       const skip = (page - 1) * limit;
 
-      // 1. Fetch designs with User & Product info
+      // 1. Fetch designs with User, Product & Likes info
       const designs = await prisma.savedDesign.findMany({
         where: { status: 'published' },
         skip: skip,
         take: limit,
         orderBy: { createdAt: 'desc' }, // Naye designs sabse upar aayenge
         include: {
-          // 🚀 Frontend ke liye extra data (Joins)
           user: { 
             select: { first_name: true, last_name: true, profile_picture_url: true } 
           },
           product: { 
             select: { name: true, baseStitchingPrice: true } 
-          }
+          },
+          // 🚨 NAYI LOGIC: Agar user login hai, toh check karo kya usne like kiya hai?
+          ...(userId && {
+            likes: {
+              where: { userId: userId },
+              select: { id: true } // Sirf id le aao confirmation ke liye
+            }
+          })
         }
       });
 
-      // 2. Count total designs (Frontend pagination ke liye)
+      // 2. Formatting for Frontend (Smart mapping)
+      // Frontend ko array nahi, sirf true/false chahiye hota hai isLiked ke liye
+      const formattedDesigns = designs.map(design => {
+        // Agar likes ki array mein kuch aya hai, matlab is user ne like kiya hai
+        const isLiked = design.likes && design.likes.length > 0;
+        
+        // Asal design object se 'likes' array ko hata kar clean response bhejna
+        const { likes, ...cleanDesign } = design; 
+
+        return {
+          ...cleanDesign,
+          isLiked: isLiked // Frontend wala is variable se red heart chalayega
+        };
+      });
+
+      // 3. Count total designs
       const total = await prisma.savedDesign.count({
         where: { status: 'published' }
       });
 
-      console.log(`⚙️ [SERVICE] Successfully fetched ${designs.length} published designs.`);
+      console.log(`⚙️ [SERVICE] Successfully fetched ${formattedDesigns.length} published designs.`);
       
       return { 
-        designs, 
+        designs: formattedDesigns, // 👈 Yahan formatted designs bheje hain
         meta: {
           total, 
           currentPage: page, 
@@ -168,6 +189,138 @@ const savedDesignService = {
       console.error(dbError);
       throw dbError; 
     }
+  },
+  // async getAllPublishedDesigns(page = 1, limit = 10) {
+  //   try {
+  //     console.log(`⚙️ [SERVICE] Fetching published designs. Page: ${page}, Limit: ${limit}`);
+  //     const skip = (page - 1) * limit;
+
+  //     // 1. Fetch designs with User & Product info
+  //     const designs = await prisma.savedDesign.findMany({
+  //       where: { status: 'published' },
+  //       skip: skip,
+  //       take: limit,
+  //       orderBy: { createdAt: 'desc' }, // Naye designs sabse upar aayenge
+  //       include: {
+  //         // 🚀 Frontend ke liye extra data (Joins)
+  //         user: { 
+  //           select: { first_name: true, last_name: true, profile_picture_url: true } 
+  //         },
+  //         product: { 
+  //           select: { name: true, baseStitchingPrice: true } 
+  //         }
+  //       }
+  //     });
+
+  //     // 2. Count total designs (Frontend pagination ke liye)
+  //     const total = await prisma.savedDesign.count({
+  //       where: { status: 'published' }
+  //     });
+
+  //     console.log(`⚙️ [SERVICE] Successfully fetched ${designs.length} published designs.`);
+      
+  //     return { 
+  //       designs, 
+  //       meta: {
+  //         total, 
+  //         currentPage: page, 
+  //         totalPages: Math.ceil(total / limit),
+  //         hasMore: page * limit < total
+  //       }
+  //     };
+      
+  //   } catch (dbError) {
+  //     console.error("🔥 DATABASE ERROR IN FETCH PUBLISHED DESIGNS:");
+  //     console.error(dbError);
+  //     throw dbError; 
+  //   }
+  // },
+
+  /**
+   * Admin: paginated list of all saved designs (no full canvas payload).
+   * Query: page, limit, status (private | published), search (name, id, user email/name)
+   */
+  async getAdminSavedDesignsList(queryParams = {}) {
+    const page = Math.max(1, parseInt(queryParams.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(queryParams.limit, 10) || 20));
+    const skip = (page - 1) * limit;
+
+    const where = {};
+
+    const st = queryParams.status && String(queryParams.status).trim().toLowerCase();
+    if (st === 'private' || st === 'published') {
+      where.status = st;
+    }
+
+    if (queryParams.search && String(queryParams.search).trim()) {
+      const s = String(queryParams.search).trim();
+      where.OR = [
+        { designName: { contains: s, mode: 'insensitive' } },
+        { saveDesignId: { contains: s, mode: 'insensitive' } },
+        {
+          user: {
+            OR: [
+              { email: { contains: s, mode: 'insensitive' } },
+              { first_name: { contains: s, mode: 'insensitive' } },
+              { last_name: { contains: s, mode: 'insensitive' } },
+              { mobile_number: { contains: s, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
+    }
+
+    const [designs, total] = await prisma.$transaction([
+      prisma.savedDesign.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          saveDesignId: true,
+          designName: true,
+          thumbnailUrl: true,
+          status: true,
+          basePrice: true,
+          addOnPrice: true,
+          finalPrice: true,
+          currency: true,
+          viewsCount: true,
+          likesCount: true,
+          remixesCount: true,
+          remixedFromId: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              user_id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              mobile_number: true,
+            },
+          },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              pieceType: true,
+            },
+          },
+        },
+      }),
+      prisma.savedDesign.count({ where }),
+    ]);
+
+    return {
+      designs,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 0,
+      },
+    };
   },
 
   async getDesignsByUser(userId) {

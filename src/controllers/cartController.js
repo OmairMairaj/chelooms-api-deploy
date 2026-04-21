@@ -237,7 +237,7 @@ const cartController = {
     try {
       const userId = req.user ? req.user.user_id : null;
       const guestId = req.user ? null : req.guestId;
-
+``
       const cart = await prisma.order.findFirst({
         where: {
             OR: [

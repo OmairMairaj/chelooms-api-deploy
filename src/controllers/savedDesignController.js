@@ -1,7 +1,7 @@
 const savedDesignService = require('../services/savedDesignService');
 
 const savedDesignController = {
-  // async saveDesign(req, res) {
+  
   //   console.log("👉 [SAVE DESIGN] Step 1: Request hit the controller!");
 
   //   try {
@@ -234,12 +234,13 @@ const savedDesignController = {
 
     try {
       // 1. Get Pagination Params from URL Query (Default: Page 1, Limit 10)
+      const userId = req.user ? req.user.user_id : null;
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
 
       // 2. Pass to Service
       console.log(`👉 [GET PUBLISHED] Step 2: Requesting Page ${page}...`);
-      const result = await savedDesignService.getAllPublishedDesigns(page, limit);
+      const result = await savedDesignService.getAllPublishedDesigns(page, limit, userId);
 
       console.log("✅ [GET PUBLISHED] Step 3: Success!");
       return res.status(200).json({
@@ -324,7 +325,23 @@ const savedDesignController = {
     } catch (error) {
       return res.status(500).json({ success: false, error: error.message });
     }
-  }
+  },
+
+  /** Admin / inventory: all saved designs (paginated + filters) */
+  async getAllForAdmin(req, res) {
+    try {
+      const result = await savedDesignService.getAdminSavedDesignsList(req.query);
+      return res.status(200).json({
+        success: true,
+        message: 'Saved designs fetched successfully',
+        data: result.designs,
+        meta: result.meta,
+      });
+    } catch (error) {
+      console.error('Error fetching admin saved designs:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  },
 
 };
 
