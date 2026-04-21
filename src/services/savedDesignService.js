@@ -123,18 +123,49 @@ const savedDesignService = {
     }
   },
 
-  // 👇 Naya parameter 'userId' add kiya (optional hai, taake bina login walay bhi gallery dekh sakein)
-  async getAllPublishedDesigns(page = 1, limit = 10, userId = null) {
+  // 👇 Parameters mein search aur sortBy add kar diye hain
+  async getAllPublishedDesigns(page = 1, limit = 10, userId = null, search = '', sortBy = 'newest') {
     try {
-      console.log(`⚙️ [SERVICE] Fetching published designs. Page: ${page}, Limit: ${limit}, User: ${userId}`);
       const skip = (page - 1) * limit;
 
-      // 1. Fetch designs with User, Product & Likes info
+      // 🔍 1. BUILD WHERE CLAUSE (Search Filter)
+      const whereCondition = { status: 'published' };
+      
+      if (search) {
+        whereCondition.designName = {
+          contains: search,
+          mode: 'insensitive' // Yeh uppercase/lowercase ka masla khatam kar dega
+        };
+      }
+
+      // 📊 2. BUILD ORDER BY CLAUSE (Sorting Filter)
+      let orderByCondition = { createdAt: 'desc' }; // Default: Newest
+
+      switch (sortBy) {
+        case 'most-liked':
+          orderByCondition = { likesCount: 'desc' }; // Sabse zyada likes wale upar
+          break;
+        case 'trending':
+          orderByCondition = { viewsCount: 'desc' }; // Jisko sabse zyada dekha gaya (Trending)
+          break;
+        case 'price-low-high':
+          orderByCondition = { finalPrice: 'asc' }; // Sastay pehle
+          break;
+        case 'price-high-low':
+          orderByCondition = { finalPrice: 'desc' }; // Mehnge pehle
+          break;
+        case 'newest':
+        default:
+          orderByCondition = { createdAt: 'desc' }; // Naye pehle
+          break;
+      }
+
+      // 🚀 3. DATABASE QUERY
       const designs = await prisma.savedDesign.findMany({
-        where: { status: 'published' },
+        where: whereCondition,
         skip: skip,
         take: limit,
-        orderBy: { createdAt: 'desc' }, // Naye designs sabse upar aayenge
+        orderBy: orderByCondition, // 👈 Dynamic sorting lag gayi
         include: {
           user: { 
             select: { first_name: true, last_name: true, profile_picture_url: true } 
@@ -142,40 +173,32 @@ const savedDesignService = {
           product: { 
             select: { name: true, baseStitchingPrice: true } 
           },
-          // 🚨 NAYI LOGIC: Agar user login hai, toh check karo kya usne like kiya hai?
           ...(userId && {
             likes: {
               where: { userId: userId },
-              select: { id: true } // Sirf id le aao confirmation ke liye
+              select: { id: true } 
             }
           })
         }
       });
 
-      // 2. Formatting for Frontend (Smart mapping)
-      // Frontend ko array nahi, sirf true/false chahiye hota hai isLiked ke liye
+      // 🎯 4. isLiked Formatting Logic (Purani wali same rahegi)
       const formattedDesigns = designs.map(design => {
-        // Agar likes ki array mein kuch aya hai, matlab is user ne like kiya hai
         const isLiked = design.likes && design.likes.length > 0;
-        
-        // Asal design object se 'likes' array ko hata kar clean response bhejna
         const { likes, ...cleanDesign } = design; 
-
         return {
           ...cleanDesign,
-          isLiked: isLiked // Frontend wala is variable se red heart chalayega
+          isLiked: isLiked
         };
       });
 
-      // 3. Count total designs
+      // 🧮 5. Pagination Total Count (Where condition isme bhi lagayenge taake search sahi chale)
       const total = await prisma.savedDesign.count({
-        where: { status: 'published' }
+        where: whereCondition
       });
 
-      console.log(`⚙️ [SERVICE] Successfully fetched ${formattedDesigns.length} published designs.`);
-      
       return { 
-        designs: formattedDesigns, // 👈 Yahan formatted designs bheje hain
+        designs: formattedDesigns, 
         meta: {
           total, 
           currentPage: page, 
@@ -185,42 +208,64 @@ const savedDesignService = {
       };
       
     } catch (dbError) {
-      console.error("🔥 DATABASE ERROR IN FETCH PUBLISHED DESIGNS:");
-      console.error(dbError);
+      console.error("🔥 DATABASE ERROR IN FETCH PUBLISHED DESIGNS:", dbError);
       throw dbError; 
     }
   },
-  // async getAllPublishedDesigns(page = 1, limit = 10) {
+
+  // 👇 Naya parameter 'userId' add kiya (optional hai, taake bina login walay bhi gallery dekh sakein)
+  // async getAllPublishedDesigns(page = 1, limit = 10, userId = null) {
   //   try {
-  //     console.log(`⚙️ [SERVICE] Fetching published designs. Page: ${page}, Limit: ${limit}`);
+  //     console.log(`⚙️ [SERVICE] Fetching published designs. Page: ${page}, Limit: ${limit}, User: ${userId}`);
   //     const skip = (page - 1) * limit;
 
-  //     // 1. Fetch designs with User & Product info
+  //     // 1. Fetch designs with User, Product & Likes info
   //     const designs = await prisma.savedDesign.findMany({
   //       where: { status: 'published' },
   //       skip: skip,
   //       take: limit,
   //       orderBy: { createdAt: 'desc' }, // Naye designs sabse upar aayenge
   //       include: {
-  //         // 🚀 Frontend ke liye extra data (Joins)
   //         user: { 
   //           select: { first_name: true, last_name: true, profile_picture_url: true } 
   //         },
   //         product: { 
   //           select: { name: true, baseStitchingPrice: true } 
-  //         }
+  //         },
+  //         // 🚨 NAYI LOGIC: Agar user login hai, toh check karo kya usne like kiya hai?
+  //         ...(userId && {
+  //           likes: {
+  //             where: { userId: userId },
+  //             select: { id: true } // Sirf id le aao confirmation ke liye
+  //           }
+  //         })
   //       }
   //     });
 
-  //     // 2. Count total designs (Frontend pagination ke liye)
+  //     // 2. Formatting for Frontend (Smart mapping)
+  //     // Frontend ko array nahi, sirf true/false chahiye hota hai isLiked ke liye
+  //     const formattedDesigns = designs.map(design => {
+  //       // Agar likes ki array mein kuch aya hai, matlab is user ne like kiya hai
+  //       const isLiked = design.likes && design.likes.length > 0;
+        
+  //       // Asal design object se 'likes' array ko hata kar clean response bhejna
+  //       const { likes, ...cleanDesign } = design; 
+
+  //       return {
+  //         ...cleanDesign,
+  //         isLiked: isLiked // Frontend wala is variable se red heart chalayega
+  //       };
+  //     });
+
+  //     // 3. Count total designs
   //     const total = await prisma.savedDesign.count({
   //       where: { status: 'published' }
   //     });
 
-  //     console.log(`⚙️ [SERVICE] Successfully fetched ${designs.length} published designs.`);
+  //     console.log(`⚙️ [SERVICE] Successfully fetched ${formattedDesigns.length} published designs.`);
       
   //     return { 
-  //       designs, 
+  //       designs: formattedDesigns, // 👈 Yahan formatted designs bheje hain
   //       meta: {
   //         total, 
   //         currentPage: page, 
@@ -235,6 +280,9 @@ const savedDesignService = {
   //     throw dbError; 
   //   }
   // },
+  
+
+  
 
   /**
    * Admin: paginated list of all saved designs (no full canvas payload).

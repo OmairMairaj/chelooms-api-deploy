@@ -229,33 +229,55 @@ const savedDesignController = {
     }
   },
 
+  // GET ALL PUBLISHED DESIGNS (Gallery)
   async getPublishedDesigns(req, res) {
-    console.log("👉 [GET PUBLISHED] Step 1: Request hit the controller!");
-
     try {
-      // 1. Get Pagination Params from URL Query (Default: Page 1, Limit 10)
-      const userId = req.user ? req.user.user_id : null;
+      // Optional Auth se User ID nikalna
+      const userId = req.user ? req.user.user_id : null; 
+      
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
+      
+      // 👇 NAYE FILTERS: Query params se nikal rahe hain
+      const search = req.query.search || ''; 
+      const sortBy = req.query.sortBy || 'newest'; // Default 'newest' rahega
 
-      // 2. Pass to Service
-      console.log(`👉 [GET PUBLISHED] Step 2: Requesting Page ${page}...`);
-      const result = await savedDesignService.getAllPublishedDesigns(page, limit, userId);
-
-      console.log("✅ [GET PUBLISHED] Step 3: Success!");
-      return res.status(200).json({
-        success: true,
-        message: "Published designs fetched successfully.",
-        data: result.designs,
-        meta: result.meta
-      });
-
+      // Service ko naye parameters bhej dein
+      const result = await savedDesignService.getAllPublishedDesigns(page, limit, userId, search, sortBy);
+      
+      return res.status(200).json({ success: true, data: result });
     } catch (error) {
-      console.error("❌ CRITICAL ERROR IN GET PUBLISHED DESIGNS CONTROLLER:");
-      console.error(error.stack);
+      console.error("Error in getPublishedDesigns Controller:", error);
       return res.status(500).json({ success: false, error: error.message });
     }
   },
+  // async getPublishedDesigns(req, res) {
+  //   console.log("👉 [GET PUBLISHED] Step 1: Request hit the controller!");
+
+  //   try {
+  //     // 1. Get Pagination Params from URL Query (Default: Page 1, Limit 10)
+  //     const userId = req.user ? req.user.user_id : null;
+  //     const page = parseInt(req.query.page) || 1;
+  //     const limit = parseInt(req.query.limit) || 10;
+
+  //     // 2. Pass to Service
+  //     console.log(`👉 [GET PUBLISHED] Step 2: Requesting Page ${page}...`);
+  //     const result = await savedDesignService.getAllPublishedDesigns(page, limit, userId);
+
+  //     console.log("✅ [GET PUBLISHED] Step 3: Success!");
+  //     return res.status(200).json({
+  //       success: true,
+  //       message: "Published designs fetched successfully.",
+  //       data: result.designs,
+  //       meta: result.meta
+  //     });
+
+  //   } catch (error) {
+  //     console.error("❌ CRITICAL ERROR IN GET PUBLISHED DESIGNS CONTROLLER:");
+  //     console.error(error.stack);
+  //     return res.status(500).json({ success: false, error: error.message });
+  //   }
+  // },
 
   async getMyDesigns(req, res) {
     console.log("👉 [GET MY DESIGNS] Step 1: Request hit the controller!");
