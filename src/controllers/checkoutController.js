@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const jwt = require('jsonwebtoken');
 const { sendOrderConfirmationEmail } = require('../services/emailService');
+const { computeOrderAmounts } = require('../utils/orderTotals');
 
 const checkoutController = {
 
@@ -380,7 +381,13 @@ const checkoutController = {
           }
         }
 
-        // B. Finalize Order
+        // B. Finalize order + sync financials (10% tax on subtotal, shipping 200)
+        let lineSubtotal = 0;
+        for (const item of order.items) {
+          lineSubtotal += parseFloat(item.totalLinePrice) || 0;
+        }
+        const amounts = computeOrderAmounts(lineSubtotal);
+
         await tx.order.update({
           where: { id: order.id },
           data: {
@@ -388,8 +395,12 @@ const checkoutController = {
             operationalStatus: 'pending_payment',
             paymentMethod: paymentMethod || 'COD',
             paymentStatus: 'unpaid',
-            placedAt: new Date()
-          }
+            placedAt: new Date(),
+            subtotal: amounts.subtotal,
+            taxAmount: amounts.taxAmount,
+            shippingCost: amounts.shippingCost,
+            totalAmount: amounts.totalAmount,
+          },
         });
 
         // C. Timeline

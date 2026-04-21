@@ -1,24 +1,27 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { computeOrderAmounts } = require('../utils/orderTotals');
 
-// Helper: Cart ka Total calculate karne ke liye
+// Helper: line items se subtotal, phir tax 10% + shipping 200 → order row update
 const calculateOrderTotal = async (orderId) => {
   const items = await prisma.orderItem.findMany({ where: { orderId } });
-  
-  let subtotal = 0;
-  items.forEach(item => {
-    subtotal += item.totalLinePrice;
+
+  let lineSubtotal = 0;
+  items.forEach((item) => {
+    lineSubtotal += parseFloat(item.totalLinePrice) || 0;
   });
 
-  // Abhi ke liye Tax aur Shipping 0 rakhte hain, baad mein logic lagayenge
-  const totalAmount = subtotal;
+  const { subtotal, taxAmount, shippingCost, totalAmount } =
+    computeOrderAmounts(lineSubtotal);
 
   await prisma.order.update({
     where: { id: orderId },
-    data: { 
-      subtotal: subtotal,
-      totalAmount: totalAmount
-    }
+    data: {
+      subtotal,
+      taxAmount,
+      shippingCost,
+      totalAmount,
+    },
   });
 };
 
