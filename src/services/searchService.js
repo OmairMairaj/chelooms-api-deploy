@@ -1,45 +1,71 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../config/db');
+
+const RESULT_LIMIT = 15;
 
 class SearchService {
     async globalSiteSearch(searchQuery) {
-        // Agar user ne khali search hit ki hai, toh empty arrays bhej do
         if (!searchQuery || searchQuery.trim() === "") {
             return { fabrics: [], embellishments: [], designs: [] };
         }
 
         const q = searchQuery.trim();
 
-        // Database Query: Sirf ACTIVE items dhoondo jinke naam, SKU, ya color mein search word ho
-        const items = await prisma.inventoryItem.findMany({
-            where: {
-                isActive: true, // 🚨 The Golden Rule: Chhupe hue items site par nahi jayenge
-                OR: [
-                    { name: { contains: q, mode: 'insensitive' } },
-                    { sku: { contains: q, mode: 'insensitive' } },
-                    { colorName: { contains: q, mode: 'insensitive' } }
-                ]
-            },
-            include: {
-                category: { select: { type: true, name: true } }
-            },
-            take: 15 // ⚡ Performance Boost: Dropdown mein max 15 results hi achay lagte hain
-        });
+        const [items, designRows] = await Promise.all([
+            prisma.inventoryItem.findMany({
+                where: {
+                    isActive: true,
+                    OR: [
+                        { name: { contains: q, mode: 'insensitive' } },
+                        { sku: { contains: q, mode: 'insensitive' } },
+                        { colorName: { contains: q, mode: 'insensitive' } },
+                    ],
+                },
+                include: {
+                    category: { select: { type: true, name: true } },
+                },
+                take: RESULT_LIMIT,
+            }),
+            prisma.savedDesign.findMany({
+                where: {
+                    status: 'published',
+                    OR: [
+                        { designName: { contains: q, mode: 'insensitive' } },
+                        { product: { name: { contains: q, mode: 'insensitive' } } },
+                    ],
+                },
+                select: {
+                    saveDesignId: true,
+                    designName: true,
+                    thumbnailUrl: true,
+                    finalPrice: true,
+                    currency: true,
+                    viewsCount: true,
+                    likesCount: true,
+                    product: { select: { id: true, name: true, pieceType: true } },
+                    user: {
+                        select: {
+                            first_name: true,
+                            last_name: true,
+                        },
+                    },
+                },
+                orderBy: { createdAt: 'desc' },
+                take: RESULT_LIMIT,
+            }),
+        ]);
 
-        // Ab in results ko Categories ke hisaab se alag alag buckets (arrays) mein daal do
         const fabrics = [];
         const embellishments = [];
-        
-        items.forEach(item => {
-            // Frontend dropdown ke liye sirf zaroori data bhejo (Poora kachra nahi)
+
+        items.forEach((item) => {
             const formattedItem = {
                 id: item.id,
                 name: item.name,
                 sku: item.sku,
                 price: item.price,
-                stockQuantity: item.stockQuantity, // Frontend isko dekh kar "Out of Stock" dikhayega
-                image: item.images?.thumbnail || null, // Sirf choti picture bhejo
-                categoryName: item.category.name
+                stockQuantity: item.stockQuantity,
+                image: item.images?.thumbnail || null,
+                categoryName: item.category.name,
             };
 
             if (item.category.type === 'FABRIC') {
@@ -49,9 +75,19 @@ class SearchService {
             }
         });
 
-        // Designs abhi ready nahi hain, toh usko empty array rakha hai 
-        // Frontend apna UI abhi se iske hisaab se bana lega
-        const designs = [];
+        const designs = designRows.map((d) => ({
+            id: d.saveDesignId,
+            name: d.designName,
+            thumbnailUrl: d.thumbnailUrl,
+            price: d.finalPrice,
+            currency: d.currency || 'PKR',
+            viewsCount: d.viewsCount,
+            likesCount: d.likesCount,
+            productId: d.product?.id,
+            productName: d.product?.name,
+            pieceType: d.product?.pieceType,
+            authorName: [d.user?.first_name, d.user?.last_name].filter(Boolean).join(' ').trim() || null,
+        }));
 
         return { fabrics, embellishments, designs };
     }
