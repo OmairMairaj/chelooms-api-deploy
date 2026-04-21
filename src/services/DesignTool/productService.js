@@ -135,6 +135,17 @@ class ProductService {
         include: { fabricProfile: true }
       });
 
+      // Fabrics have no global sortOrder column; preserve the per-product
+      // drag order from product.allowedFabricIds as the fallback ordering.
+      const fabricOrderIndex = new Map(
+        product.allowedFabricIds.map((id, idx) => [id, idx])
+      );
+      inventoryItems.sort(
+        (a, b) =>
+          (fabricOrderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+          (fabricOrderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+      );
+
       fabricsData = inventoryItems.map(item => {
         const fp = item.fabricProfile || {};
         return {
@@ -154,6 +165,10 @@ class ProductService {
     }
 
     // --- 🛠️ SMART HELPER: Group Options by their Category ---
+    // Options are expected to arrive pre-sorted by (category.sortOrder ASC,
+    // option.sortOrder ASC) from the caller's Prisma query. We capture each
+    // category's sortOrder on first encounter so the final group list is
+    // explicitly sorted — independent of JS object-key iteration order.
     const groupByCategory = (optionsList) => {
       const grouped = {};
       optionsList.forEach(opt => {
@@ -165,6 +180,7 @@ class ProductService {
             id: cat.frontendId || cat.categoryId, // E.g., nl-angular
             name: cat.name,
             image: cat.image || [],
+            _sortOrder: typeof cat.sortOrder === 'number' ? cat.sortOrder : 0,
             options: []
           };
         }
@@ -193,7 +209,9 @@ class ProductService {
           colors: opt.colors || undefined // For hemlines
         });
       });
-      return Object.values(grouped);
+      return Object.values(grouped)
+        .sort((a, b) => (a._sortOrder ?? 0) - (b._sortOrder ?? 0))
+        .map(({ _sortOrder, ...rest }) => rest);
     };
 
     // 3. 👚 Fetch Necklines (with Category)
@@ -206,7 +224,11 @@ class ProductService {
             { frontendId: { in: product.allowedNecklineOptionIds } }
           ]
         },
-        include: { category: true }
+        include: { category: true },
+        orderBy: [
+          { category: { sortOrder: 'asc' } },
+          { sortOrder: 'asc' }
+        ]
       });
       necklinesData = groupByCategory(necklines);
     }
@@ -221,7 +243,11 @@ class ProductService {
             { frontendId: { in: product.allowedSleeveOptionIds } }
           ]
         },
-        include: { category: true }
+        include: { category: true },
+        orderBy: [
+          { category: { sortOrder: 'asc' } },
+          { sortOrder: 'asc' }
+        ]
       });
       sleevesData = groupByCategory(sleeves);
     }
@@ -236,7 +262,11 @@ class ProductService {
             { frontendId: { in: product.allowedHemlineOptionIds } }
           ]
         },
-        include: { category: true }
+        include: { category: true },
+        orderBy: [
+          { category: { sortOrder: 'asc' } },
+          { sortOrder: 'asc' }
+        ]
       });
       hemlinesData = groupByCategory(hemlines);
     }
@@ -250,7 +280,8 @@ class ProductService {
             { sideSlitId: { in: product.allowedSideSlitIds } },
             { frontendId: { in: product.allowedSideSlitIds } }
           ]
-        }
+        },
+        orderBy: { sortOrder: 'asc' }
       });
       sideSlitsData = sideSlits.map(slit => ({
         id: slit.frontendId || slit.sideSlitId,
@@ -278,7 +309,11 @@ class ProductService {
             { frontendId: { in: product.allowedEmbellishmentOptionIds } }
           ]
         },
-        include: { category: true }
+        include: { category: true },
+        orderBy: [
+          { category: { sortOrder: 'asc' } },
+          { sortOrder: 'asc' }
+        ]
       });
       embellishmentsData = groupByCategory(embellishments);
     }
