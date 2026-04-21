@@ -815,6 +815,29 @@ model SavedDesign {
   currency         String?  @default("PKR")
   pricingBreakdown Json?    // Array of objects save karne ke liye
 
+viewsCount    Int     @default(0)
+  likesCount    Int     @default(0)
+  remixesCount  Int     @default(0)
+  remixedFromId String? // Agar kisi ne remix kiya, toh original design ki ID aayegi
+
+  // Relation for Likes
+  likes         DesignLike[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+
+// 👇 NAYA MODEL: Likes track karne ke liye
+model DesignLike {
+  id        String   @id @default(uuid())
+  userId    String   // Jis user ne like kiya (iski type wahi rakhein jo SavedDesign mein userId ki hai)
+  designId  String   // Jo design like hua
+  createdAt DateTime @default(now())
+
+  // Relation: Agar design delete ho toh uske likes bhi delete ho jayen
+  design    SavedDesign @relation(fields: [designId], references: [saveDesignId], onDelete: Cascade)
+
+  // 🚨 SMART CHECK: Ek user ek design ko sirf 1 dafa like kar sakta hai
+  @@unique([userId, designId])
 }

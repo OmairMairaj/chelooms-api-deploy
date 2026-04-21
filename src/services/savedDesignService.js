@@ -2,6 +2,56 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const savedDesignService = {
+  
+  async saveNewDesign(data) {
+    try {
+      console.log("⚙️ [SERVICE] Saving Design with Remix Logic...");
+
+      const parsedRatio = Number(data.aspectRatio);
+      const aspectRatio = Number.isFinite(parsedRatio) && parsedRatio > 0 ? parsedRatio : 1.0;
+
+      // 🚨 Hum Transaction use kar rahe hain taake dono kaam ek sath hon
+      const result = await prisma.$transaction(async (tx) => {
+        
+        // 1. Naya Design Create Karein
+        const newDesign = await tx.savedDesign.create({
+          data: {
+            userId: data.userId,
+            productId: data.productId,
+            designName: data.designName || "My Custom Design",
+            canvasData: data.canvasData,
+            status: data.status || "private",
+            thumbnailUrl: data.thumbnailUrl || null,
+            //aspectRatio: aspectRatio,
+            basePrice: data.basePrice,
+            addOnPrice: data.addOnPrice,
+            finalPrice: data.finalPrice,
+            currency: data.currency,
+            pricingBreakdown: data.pricingBreakdown,
+            
+            // 👇 Remix Link: Agar data mein original design ki ID hai toh save hogi
+            remixedFromId: data.remixedFromId || null 
+          }
+        });
+
+        // 2. Agar yeh Remix hai, toh Original Design ka count +1 karein
+        if (data.remixedFromId) {
+          await tx.savedDesign.update({
+            where: { saveDesignId: data.remixedFromId },
+            data: { remixesCount: { increment: 1 } }
+          });
+          console.log(`♻️ Original Design ${data.remixedFromId} ka remix count barh gaya!`);
+        }
+
+        return newDesign;
+      });
+
+      return result;
+    } catch (dbError) {
+      console.error("🔥 DATABASE ERROR IN SAVE/REMIX DESIGN:", dbError);
+      throw new Error(`DB Save Error: ${dbError.message}`);
+    }
+  },
   // async saveNewDesign(data) {
   //   try {
   //     console.log("⚙️ [SERVICE] Attempting to save Custom Design in DB...");
@@ -19,7 +69,14 @@ const savedDesignService = {
   //         canvasData: data.canvasData, // Yeh poora JSON object hoga
   //         status: data.status || "private",
   //         thumbnailUrl: data.thumbnailUrl || null,
-  //         //aspectRatio
+          
+  //         // 🚨 NAYI FIELDS YAHAN MAP KI HAIN 🚨
+  //         //aspectRatio: aspectRatio, 
+  //         basePrice: data.basePrice,
+  //         addOnPrice: data.addOnPrice,
+  //         finalPrice: data.finalPrice,
+  //         currency: data.currency,
+  //         pricingBreakdown: data.pricingBreakdown
   //       }
   //     });
 
@@ -33,44 +90,6 @@ const savedDesignService = {
   //   }
   // },
 
-
-  async saveNewDesign(data) {
-    try {
-      console.log("⚙️ [SERVICE] Attempting to save Custom Design in DB...");
-      
-      // Coerce aspectRatio: FormData delivers strings, keep a sane fallback so
-      // legacy callers (no ratio sent) still default to square.
-      const parsedRatio = Number(data.aspectRatio);
-      const aspectRatio = Number.isFinite(parsedRatio) && parsedRatio > 0 ? parsedRatio : 1.0;
-
-      const newDesign = await prisma.savedDesign.create({
-        data: {
-          userId: data.userId,
-          productId: data.productId,
-          designName: data.designName || "My Custom Design",
-          canvasData: data.canvasData, // Yeh poora JSON object hoga
-          status: data.status || "private",
-          thumbnailUrl: data.thumbnailUrl || null,
-          
-          // 🚨 NAYI FIELDS YAHAN MAP KI HAIN 🚨
-          //aspectRatio: aspectRatio, 
-          basePrice: data.basePrice,
-          addOnPrice: data.addOnPrice,
-          finalPrice: data.finalPrice,
-          currency: data.currency,
-          pricingBreakdown: data.pricingBreakdown
-        }
-      });
-
-      console.log("⚙️ [SERVICE] DB Save Successful! Design ID:", newDesign.saveDesignId);
-      return newDesign;
-      
-    } catch (dbError) {
-      console.error("🔥 DATABASE ERROR IN SAVE DESIGN:");
-      console.error(dbError);
-      throw new Error(`DB Save Error: ${dbError.message}`);
-    }
-  },
   async updateDesignStatus(saveDesignId, userId, newStatus) {
     try {
       console.log(`⚙️ [SERVICE] Step A: Verifying ownership for Design ID: ${saveDesignId}`);
@@ -176,6 +195,62 @@ const savedDesignService = {
       console.error("🔥 DATABASE ERROR IN FETCH USER DESIGNS:");
       console.error(dbError);
       throw dbError;
+    }
+  },
+
+  // 👁️ 1. INCREMENT VIEW COUNT
+  async incrementViewCount(designId) {
+    try {
+      const updatedDesign = await prisma.savedDesign.update({
+        where: { saveDesignId: designId }, // Agar aapki primary key 'id' hai, toh id likhiyega
+        data: {
+          viewsCount: { increment: 1 } // Prisma khud isko +1 kar dega
+        }
+      });
+      return updatedDesign.viewsCount;
+    } catch (error) {
+      console.error("Error incrementing view count:", error);
+      throw new Error("Failed to update view count");
+    }
+  },
+
+  // ❤️ 2. TOGGLE LIKE (Like/Unlike Logic)
+  async toggleLikeDesign(userId, designId) {
+    try {
+      // 1. Check karein ke kya user ne pehle se like kiya hua hai?
+      const existingLike = await prisma.designLike.findUnique({
+        where: {
+          userId_designId: { userId, designId }
+        }
+      });
+
+      // 🚨 Hum Transaction use kar rahe hain taake DB count hamesha accurate rahe
+      if (existingLike) {
+        // UNLIKE LOGIC: Like delete karo, aur design table mein count -1 karo
+        await prisma.$transaction([
+          prisma.designLike.delete({ where: { id: existingLike.id } }),
+          prisma.savedDesign.update({
+            where: { saveDesignId: designId },
+            data: { likesCount: { decrement: 1 } }
+          })
+        ]);
+        return { message: "Design unliked", liked: false };
+      } else {
+        // LIKE LOGIC: Naya Like banao, aur design table mein count +1 karo
+        await prisma.$transaction([
+          prisma.designLike.create({
+            data: { userId, designId }
+          }),
+          prisma.savedDesign.update({
+            where: { saveDesignId: designId },
+            data: { likesCount: { increment: 1 } }
+          })
+        ]);
+        return { message: "Design liked", liked: true };
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      throw new Error("Failed to toggle like status");
     }
   }
 

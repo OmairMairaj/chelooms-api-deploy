@@ -23,4 +23,10 @@ router.get('/published', savedDesignController.getPublishedDesigns);
 
 router.get('/my-designs', protect, savedDesignController.getMyDesigns);
 
+// 👁️ Route: Jab koi user design dekhe (Isko public rakh sakte hain taake bina login walay log bhi view barha sakein)
+router.patch('/gallery/:id/view', savedDesignController.incrementView);
+
+// ❤️ Route: Jab koi user Like dabaye (Isme `protect` middleware zaroori hai kyunki user pata hona chahiye)
+router.post('/gallery/:id/like', protect, savedDesignController.toggleLike);
+
 module.exports = router;

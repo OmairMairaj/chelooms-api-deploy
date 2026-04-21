@@ -93,7 +93,7 @@ const savedDesignController = {
       // 2. Extract Data from Body (Nayi fields yahan add ki hain)
       const { 
         productId, designName, canvasData, status, aspectRatio,
-        basePrice, addOnPrice, finalPrice, currency, pricingBreakdown 
+        basePrice, addOnPrice, finalPrice, currency, pricingBreakdown, remixedFromId
       } = req.body;
       
       console.log(`👉 [SAVE DESIGN] Step 2: Data received for Product ID: ${productId}`);
@@ -157,7 +157,8 @@ const savedDesignController = {
         addOnPrice: parsedAddOnPrice,
         finalPrice: parsedFinalPrice,
         currency: parsedCurrency,
-        pricingBreakdown: parsedBreakdown
+        pricingBreakdown: parsedBreakdown,  
+        remixedFromId: remixedFromId || null
       };
 
       console.log("👉 [SAVE DESIGN] Step 5: Sending data to Service layer...");
@@ -166,7 +167,7 @@ const savedDesignController = {
       console.log("✅ [SAVE DESIGN] Step 6: Success! Design Saved.");
       return res.status(201).json({
         success: true,
-        message: "Your custom design has been saved successfully!",
+        message: remixedFromId ? "Design remixed successfully! ♻️" : "Design saved successfully!",
         data: savedDesign
       });
 
@@ -283,7 +284,48 @@ const savedDesignController = {
       console.error(error.stack);
       return res.status(500).json({ success: false, error: error.message });
     }
+  },
+
+
+  // 👁️ INCREMENT VIEW CONTROLLER
+  async incrementView(req, res) {
+    try {
+      const { id } = req.params;
+      const newViewsCount = await savedDesignService.incrementViewCount(id);
+
+      return res.status(200).json({
+        success: true,
+        message: "View count updated",
+        viewsCount: newViewsCount
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  // ❤️ TOGGLE LIKE CONTROLLER
+  async toggleLike(req, res) {
+    try {
+      // Auth middleware se user ID aayegi (User ka login hona zaroori hai)
+      const userId = req.user ? req.user.user_id : null; 
+      const { id } = req.params; // Yeh designId hai
+
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "Please login to like designs." });
+      }
+
+      const result = await savedDesignService.toggleLikeDesign(userId, id);
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        liked: result.liked
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
   }
+
 };
 
 module.exports = savedDesignController;
