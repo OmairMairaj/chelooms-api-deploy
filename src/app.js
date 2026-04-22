@@ -44,6 +44,8 @@ const defaultDevOrigins = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
   'http://127.0.0.1:3002',
+  'https://chelooms-frontend-deploy.vercel.app',
+  'https://chelooms-admin-deploy.vercel.app',
 ];
 
 const allowedOrigins = new Set([...defaultDevOrigins, ...envOrigins]);
