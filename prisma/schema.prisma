@@ -809,6 +809,8 @@ model SavedDesign {
 
   // 4. Status 
   status        String   @default("private")
+  /// Admin: `false` = gallery/search mein nahi (published + inactive = hidden)
+  isActive      Boolean  @default(true)
   basePrice        Float?
   addOnPrice       Float?
   finalPrice       Float?

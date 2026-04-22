@@ -28,6 +28,7 @@ class SearchService {
             prisma.savedDesign.findMany({
                 where: {
                     status: 'published',
+                    isActive: true,
                     OR: [
                         { designName: { contains: q, mode: 'insensitive' } },
                         { product: { name: { contains: q, mode: 'insensitive' } } },

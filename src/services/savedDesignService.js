@@ -128,8 +128,8 @@ const savedDesignService = {
     try {
       const skip = (page - 1) * limit;
 
-      // 🔍 1. BUILD WHERE CLAUSE (Search Filter)
-      const whereCondition = { status: 'published' };
+      // 🔍 1. BUILD WHERE CLAUSE (Search Filter) — sirf published + active
+      const whereCondition = { status: 'published', isActive: true };
       
       if (search) {
         whereCondition.designName = {
@@ -300,6 +300,12 @@ const savedDesignService = {
       where.status = st;
     }
 
+    if (queryParams.isActive === 'true' || queryParams.isActive === '1') {
+      where.isActive = true;
+    } else if (queryParams.isActive === 'false' || queryParams.isActive === '0') {
+      where.isActive = false;
+    }
+
     if (queryParams.search && String(queryParams.search).trim()) {
       const s = String(queryParams.search).trim();
       where.OR = [
@@ -329,6 +335,7 @@ const savedDesignService = {
           designName: true,
           thumbnailUrl: true,
           status: true,
+          isActive: true,
           basePrice: true,
           addOnPrice: true,
           finalPrice: true,
@@ -371,6 +378,29 @@ const savedDesignService = {
     };
   },
 
+  /** Admin: gallery/search visibility (published designs can be hidden) */
+  async setAdminIsActive(saveDesignId, isActive) {
+    const existing = await prisma.savedDesign.findUnique({
+      where: { saveDesignId },
+      select: { saveDesignId: true },
+    });
+    if (!existing) {
+      const err = new Error('NOT_FOUND');
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+    return prisma.savedDesign.update({
+      where: { saveDesignId },
+      data: { isActive: Boolean(isActive) },
+      select: {
+        saveDesignId: true,
+        isActive: true,
+        designName: true,
+        status: true,
+      },
+    });
+  },
+
   async getDesignsByUser(userId) {
     try {
       console.log(`⚙️ [SERVICE] Fetching all designs for User ID: ${userId}`);
@@ -399,25 +429,51 @@ const savedDesignService = {
     }
   },
 
-  // 👁️ 1. INCREMENT VIEW COUNT
+  // 👁️ 1. INCREMENT VIEW COUNT (published + active only)
   async incrementViewCount(designId) {
     try {
+      const design = await prisma.savedDesign.findFirst({
+        where: {
+          saveDesignId: designId,
+          status: 'published',
+          isActive: true,
+        },
+        select: { saveDesignId: true },
+      });
+      if (!design) {
+        const err = new Error('DESIGN_NOT_AVAILABLE');
+        err.code = 'DESIGN_NOT_AVAILABLE';
+        throw err;
+      }
       const updatedDesign = await prisma.savedDesign.update({
-        where: { saveDesignId: designId }, // Agar aapki primary key 'id' hai, toh id likhiyega
-        data: {
-          viewsCount: { increment: 1 } // Prisma khud isko +1 kar dega
-        }
+        where: { saveDesignId: designId },
+        data: { viewsCount: { increment: 1 } },
       });
       return updatedDesign.viewsCount;
     } catch (error) {
+      if (error.code === 'DESIGN_NOT_AVAILABLE') throw error;
       console.error("Error incrementing view count:", error);
       throw new Error("Failed to update view count");
     }
   },
 
-  // ❤️ 2. TOGGLE LIKE (Like/Unlike Logic)
+  // ❤️ 2. TOGGLE LIKE (Like/Unlike Logic) — published + active only
   async toggleLikeDesign(userId, designId) {
     try {
+      const design = await prisma.savedDesign.findFirst({
+        where: {
+          saveDesignId: designId,
+          status: 'published',
+          isActive: true,
+        },
+        select: { saveDesignId: true },
+      });
+      if (!design) {
+        const err = new Error('DESIGN_NOT_AVAILABLE');
+        err.code = 'DESIGN_NOT_AVAILABLE';
+        throw err;
+      }
+
       // 1. Check karein ke kya user ne pehle se like kiya hua hai?
       const existingLike = await prisma.designLike.findUnique({
         where: {
@@ -450,6 +506,7 @@ const savedDesignService = {
         return { message: "Design liked", liked: true };
       }
     } catch (error) {
+      if (error.code === 'DESIGN_NOT_AVAILABLE') throw error;
       console.error("Error toggling like:", error);
       throw new Error("Failed to toggle like status");
     }

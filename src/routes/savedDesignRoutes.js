@@ -31,6 +31,14 @@ router.get(
   savedDesignController.getAllForAdmin
 );
 
+// Admin: set active / inactive (must be before /:id/status)
+router.patch(
+  '/admin/:id/active',
+  protect,
+  authorize('Administrator', 'Inventory_Manager'),
+  savedDesignController.setAdminIsActive
+);
+
 // 👁️ Route: Jab koi user design dekhe (Isko public rakh sakte hain taake bina login walay log bhi view barha sakein)
 router.patch('/gallery/:id/view', savedDesignController.incrementView);
 
