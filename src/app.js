@@ -72,6 +72,186 @@ app.use(cors({
 // 3. Body Parser
 app.use(express.json());
 
+// --- Public root endpoint ---
+// Browser-friendly landing page for the API base URL.
+app.get('/', (req, res) => {
+  const now = new Date().toISOString();
+  res.status(200).type('html').send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CHELOOMS API</title>
+    <style>
+      :root {
+        --bg: #0b0b10;
+        --card: #13131a;
+        --text: #f7f7fb;
+        --muted: #b8b8c7;
+        --accent: #f2c94c;
+        --border: #242432;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+        background: radial-gradient(1200px 700px at 20% 0%, #1f1f2f 0%, var(--bg) 60%);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .card {
+        width: min(880px, 100%);
+        background: linear-gradient(180deg, #171722 0%, var(--card) 100%);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        padding: 24px;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: 0.2px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid #2f4f2f;
+        background: rgba(34, 197, 94, 0.12);
+        color: #b7f7c9;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+      }
+      p {
+        margin: 12px 0 20px;
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      a {
+        display: block;
+        text-decoration: none;
+        color: var(--text);
+        background: #1a1a24;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        transition: 160ms ease;
+      }
+      a:hover {
+        border-color: var(--accent);
+        transform: translateY(-1px);
+      }
+      .label {
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      .path {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 13px;
+        word-break: break-all;
+      }
+      .footer {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      code {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="top">
+        <h1>CHELOOMS API</h1>
+        <span class="pill"><span class="dot"></span> Online</span>
+      </div>
+      <p>Backend is running. Use the endpoints below for health checks and integrations.</p>
+      <section class="grid">
+        <a href="/api/v1/health">
+          <div class="label">Health</div>
+          <div class="path">/api/v1/health</div>
+        </a>
+        <a href="/api/gallery/items">
+          <div class="label">Gallery Items</div>
+          <div class="path">/api/gallery/items</div>
+        </a>
+        <a href="/api/sizing/standard">
+          <div class="label">Standard Sizes</div>
+          <div class="path">/api/sizing/standard</div>
+        </a>
+        <a href="/api/inventory/dropdown">
+          <div class="label">Inventory Dropdown</div>
+          <div class="path">/api/inventory/dropdown</div>
+        </a>
+        <a href="/api/design-tool/necklines">
+          <div class="label">Design Tool: Necklines</div>
+          <div class="path">/api/design-tool/necklines</div>
+        </a>
+        <a href="/api/design-tool/sleeves">
+          <div class="label">Design Tool: Sleeves</div>
+          <div class="path">/api/design-tool/sleeves</div>
+        </a>
+        <a href="/api/design-tool/hemlines">
+          <div class="label">Design Tool: Hemlines</div>
+          <div class="path">/api/design-tool/hemlines</div>
+        </a>
+        <a href="/api/design-tool/side-slits">
+          <div class="label">Design Tool: Side Slits</div>
+          <div class="path">/api/design-tool/side-slits</div>
+        </a>
+        <a href="/api/design-tool/embellishments">
+          <div class="label">Design Tool: Embellishments</div>
+          <div class="path">/api/design-tool/embellishments</div>
+        </a>
+        <a href="/api/design-tool/button-options">
+          <div class="label">Design Tool: Button Options</div>
+          <div class="path">/api/design-tool/button-options</div>
+        </a>
+        <a href="/api/design-tool/product-categories">
+          <div class="label">Design Tool: Product Categories</div>
+          <div class="path">/api/design-tool/product-categories</div>
+        </a>
+        <a href="/api/design-tool/products/grouped/categories">
+          <div class="label">Design Tool: Products Grouped</div>
+          <div class="path">/api/design-tool/products/grouped/categories</div>
+        </a>
+        <a href="/api/design-tool/saved-designs/published">
+          <div class="label">Published Designs</div>
+          <div class="path">/api/design-tool/saved-designs/published</div>
+        </a>
+      </section>
+      <div class="footer">
+        Timestamp: <code>${now}</code>
+      </div>
+    </main>
+  </body>
+</html>`);
+});
+
 // --- Routes ---
 app.use('/api/v1', routes);
 app.use('/api/inventory', inventoryRoutes)
