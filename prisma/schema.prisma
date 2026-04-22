@@ -817,10 +817,12 @@ model SavedDesign {
   currency         String?  @default("PKR")
   pricingBreakdown Json?    // Array of objects save karne ke liye
 
-viewsCount    Int     @default(0)
+  viewsCount    Int     @default(0)
   likesCount    Int     @default(0)
   remixesCount  Int     @default(0)
   remixedFromId String? // Agar kisi ne remix kiya, toh original design ki ID aayegi
+
+  colors    Json?
 
   // Relation for Likes
   likes         DesignLike[]

@@ -93,7 +93,8 @@ const savedDesignController = {
       // 2. Extract Data from Body (Nayi fields yahan add ki hain)
       const { 
         productId, designName, canvasData, status, aspectRatio,
-        basePrice, addOnPrice, finalPrice, currency, pricingBreakdown, remixedFromId
+        basePrice, addOnPrice, finalPrice, currency, pricingBreakdown, remixedFromId,
+        colors
       } = req.body;
       
       console.log(`👉 [SAVE DESIGN] Step 2: Data received for Product ID: ${productId}`);
@@ -144,6 +145,16 @@ const savedDesignController = {
       }
       console.log("👉 [SAVE DESIGN] Step 4: Canvas & Pricing Data parsed successfully.");
 
+      let parsedColors = null;
+      if (colors) {
+        try {
+          // Frontend agar array bhejega stringify karke: '["#FF0000", "#00FF00"]'
+          parsedColors = typeof colors === 'string' ? JSON.parse(colors) : colors;
+        } catch (err) {
+          console.error("⚠️ [SAVE DESIGN] Error parsing colors:", err.message);
+        }
+      }
+
       // 6. Pass Data to Service
       const finalData = {
         userId,
@@ -158,7 +169,8 @@ const savedDesignController = {
         finalPrice: parsedFinalPrice,
         currency: parsedCurrency,
         pricingBreakdown: parsedBreakdown,  
-        remixedFromId: remixedFromId || null
+        remixedFromId: remixedFromId || null,
+        colors: parsedColors
       };
 
       console.log("👉 [SAVE DESIGN] Step 5: Sending data to Service layer...");
