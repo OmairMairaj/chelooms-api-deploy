@@ -155,7 +155,10 @@ const checkoutController = {
 
       console.log(`🔔 [SMS SIMULATION] Sending OTP ${otpCode} to ${phone}`);
 
-      res.status(200).json({ success: true, message: "OTP sent to your mobile" });
+      // When SMS is not wired: allow returning OTP in JSON for QA/staging only.
+      const payload = { success: true, message: "OTP sent to your mobile", dev_code : otpCode };
+    
+      res.status(200).json(payload);
 
     } catch (error) {
       console.error("Send OTP Error:", error);
