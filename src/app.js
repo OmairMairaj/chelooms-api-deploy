@@ -78,10 +78,22 @@ app.use(express.json());
 // When Cloudinary is not configured, multer stores files in `<project>/uploads`.
 // Expose them at `/uploads/*` so frontend image URLs can load.
 const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+let canServeUploads = false;
+const isServerlessRuntime = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+if (!isServerlessRuntime) {
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    canServeUploads = true;
+  } catch (err) {
+    // Do not crash API startup if local upload directory cannot be created.
+    console.warn('[uploads] local uploads directory unavailable:', err.message);
+  }
 }
-app.use('/uploads', express.static(uploadsDir));
+if (canServeUploads) {
+  app.use('/uploads', express.static(uploadsDir));
+}
 
 // --- Public root endpoint ---
 // Browser-friendly landing page for the API base URL.

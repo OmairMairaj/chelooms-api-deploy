@@ -9,7 +9,8 @@ if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && proce
   storage = cloudStorage;
 } else {
   // Local disk storage (uploads/ folder)
-  const uploadDir = path.join(process.cwd(), 'uploads');
+  const isServerlessRuntime = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  const uploadDir = isServerlessRuntime ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'uploads');
   if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
   
   storage = multer.diskStorage({
