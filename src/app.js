@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
+const fs = require('fs');
 const routes = require('./routes/index'); // Make sure ye path sahi ho
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const galleryRoutes = require('./routes/galleryRoutes');
@@ -71,6 +73,15 @@ app.use(cors({
 
 // 3. Body Parser
 app.use(express.json());
+
+// 4. Static uploads (local disk fallback for images/thumbnails)
+// When Cloudinary is not configured, multer stores files in `<project>/uploads`.
+// Expose them at `/uploads/*` so frontend image URLs can load.
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
 
 // --- Public root endpoint ---
 // Browser-friendly landing page for the API base URL.

@@ -432,6 +432,23 @@ const checkoutController = {
           }
         }
       });
+      const standardSizeIds = (fullOrder.items || [])
+        .map((item) => item?.attributes?.standardSizeId)
+        .filter((id) => Number.isInteger(id));
+      const uniqueStandardSizeIds = [...new Set(standardSizeIds)];
+      const standardSizes = uniqueStandardSizeIds.length
+        ? await prisma.standardSize.findMany({
+            where: { id: { in: uniqueStandardSizeIds } },
+            select: {
+              id: true,
+              sizeCode: true,
+              label: true,
+              recommendations: true,
+              measurements: true,
+            }
+          })
+        : [];
+      const standardSizeById = new Map(standardSizes.map((size) => [size.id, size]));
 
       // Response Structure (Screenshot ke mutabiq)
       const orderSummary = {
@@ -455,11 +472,44 @@ const checkoutController = {
 
         // Order Items Section
         items: fullOrder.items.map(item => ({
+          ...(item.attributes?.method
+            ? {
+                sizing: {
+                  method: item.attributes.method,
+                  profileNickname: item.attributes.profileNickname || null,
+                  standardSizeId: item.attributes.standardSizeId || null,
+                  sizeCode:
+                    item.attributes.sizeCode ||
+                    (item.attributes.standardSizeId
+                      ? standardSizeById.get(item.attributes.standardSizeId)?.sizeCode || null
+                      : null),
+                  sizeLabel:
+                    item.attributes.sizeLabel ||
+                    (item.attributes.standardSizeId
+                      ? standardSizeById.get(item.attributes.standardSizeId)?.label || null
+                      : null),
+                  recommendations:
+                    item.attributes.standardSizeId
+                      ? standardSizeById.get(item.attributes.standardSizeId)?.recommendations || null
+                      : null,
+                  measurements:
+                    item.attributes.method === 'Jute_Fit_Custom'
+                      ? item.attributes.customMeasurements || null
+                      : (item.attributes.standardSizeId
+                          ? standardSizeById.get(item.attributes.standardSizeId)?.measurements || null
+                          : null)
+                }
+              }
+            : {}),
           name: item.nameAtPurchase,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           totalPrice: item.totalLinePrice,
-          image: item.inventoryItem?.images?.thumbnail || null, // Image URL
+          image:
+            item.inventoryItem?.images?.thumbnail ||
+            item.attributes?.designThumbnailUrl ||
+            item.attributes?.image ||
+            null, // Image URL
           color: item.inventoryItem?.colorName || "Standard"
         }))
       };

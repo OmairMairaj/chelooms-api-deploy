@@ -5,7 +5,21 @@ class GalleryController {
   async getGallery(req, res) {
     try {
       // 1. URL se Query Params nikalna (sort yahan naya add kiya hai)
-      const { categoryId, color, minPrice, maxPrice, page, limit, sort } = req.query;
+      const {
+        categoryId,
+        color,
+        minPrice,
+        maxPrice,
+        page,
+        limit,
+        sort,
+        type,
+        tags,
+        isPremium,
+        material,
+        fabricType,
+        q,
+      } = req.query;
 
       // 2. Filters object taiyar karna
       const filters = {
@@ -13,7 +27,13 @@ class GalleryController {
         color,
         minPrice,
         maxPrice,
-        sort // Frontend se aane wala sorting order yahan pass hoga
+        sort, // Frontend se aane wala sorting order yahan pass hoga
+        type,
+        tags,
+        isPremium,
+        material,
+        fabricType,
+        q,
       };
 
       // 3. Pagination values set karna (default page 1, limit 12)
@@ -36,6 +56,23 @@ class GalleryController {
         success: false, 
         message: "Failed to fetch gallery items",
         error: error.message 
+      });
+    }
+  }
+
+  async getFabricFacets(req, res) {
+    try {
+      const facets = await galleryService.getFabricFacets();
+      res.status(200).json({
+        success: true,
+        data: facets,
+      });
+    } catch (error) {
+      console.error("Fabric Facets Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch fabric facets",
+        error: error.message,
       });
     }
   }

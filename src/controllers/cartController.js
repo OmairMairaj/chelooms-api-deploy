@@ -39,7 +39,10 @@ const cartController = {
         itemType,     // 'fabric', 'embellishment', ya 'design_bundle'
         sizingMethod, // 'Standard_Preset' ya 'Jute_Fit_Custom' (Sirf designs ke liye)
         standardSizeId, 
-        customMeasurements 
+        customMeasurements,
+        profileNickname,
+        sizeCode,
+        sizeLabel
       } = req.body;
 
       // 1. Normalize Item Type
@@ -100,7 +103,13 @@ const cartController = {
         unitPrice = parseFloat(inventoryItem.price);
         itemName = inventoryItem.name;
         finalInventoryItemId = itemId;
-        // Notice: Sizing attributes remain empty {}
+        // Keep immutable item snapshot for better order history rendering.
+        itemAttributes = {
+          image: inventoryItem?.images?.thumbnail || null,
+          galleryImages: inventoryItem?.images?.gallery || [],
+          colorName: inventoryItem?.colorName || null,
+          sku: inventoryItem?.sku || null,
+        };
         
       } else if (itemType === 'design_bundle') {
         
@@ -162,12 +171,35 @@ const cartController = {
 ////////////////////////////////////////////////////////////
         // Yahan Sizing Zaroori Hai!
         if (sizingMethod === 'Standard_Preset' && standardSizeId) {
-          itemAttributes = { method: 'Standard_Preset', standardSizeId };
+          itemAttributes = {
+            method: 'Standard_Preset',
+            standardSizeId,
+            profileNickname: profileNickname || null,
+            sizeCode: sizeCode || null,
+            sizeLabel: sizeLabel || null
+          };
         } else if (sizingMethod === 'Jute_Fit_Custom' && customMeasurements) {
-          itemAttributes = { method: 'Jute_Fit_Custom', customMeasurements };
+          itemAttributes = {
+            method: 'Jute_Fit_Custom',
+            customMeasurements,
+            profileNickname: profileNickname || null
+          };
         } else {
           return res.status(400).json({ success: false, message: "Please provide valid sizing details for your design." });
         }
+
+        // Persist order-item design snapshot used later in order detail + stock deduction.
+        itemAttributes = {
+          ...itemAttributes,
+          fabricId,
+          consumptionPerSuit,
+          designName: design.designName || null,
+          designThumbnailUrl: design.thumbnailUrl || null,
+          basePrice: design.basePrice ?? null,
+          addOnPrice: design.addOnPrice ?? null,
+          finalPrice: design.finalPrice ?? null,
+          currency: design.currency || 'PKR',
+        };
 
       } else {
         return res.status(400).json({ success: false, message: "Invalid item type" });

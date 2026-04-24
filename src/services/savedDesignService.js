@@ -86,6 +86,29 @@ const savedDesignService = {
     }
   },
 
+  /** Published gallery canvas for customize/remix — single DB row, no pagination. */
+  async getPublishedCanvasBySaveDesignId(saveDesignId) {
+    if (!saveDesignId || typeof saveDesignId !== 'string') return null;
+    try {
+      const design = await prisma.savedDesign.findFirst({
+        where: {
+          saveDesignId: saveDesignId.trim(),
+          status: 'published',
+          isActive: true,
+        },
+        select: {
+          saveDesignId: true,
+          productId: true,
+          canvasData: true,
+        },
+      });
+      return design;
+    } catch (dbError) {
+      console.error('🔥 DATABASE ERROR IN getPublishedCanvasBySaveDesignId:', dbError);
+      throw dbError;
+    }
+  },
+
   async getAllPublishedDesigns(page = 1, limit = 10, userId = null, search = '', sortBy = 'newest', color = '') {
     try {
       const skip = (page - 1) * limit;

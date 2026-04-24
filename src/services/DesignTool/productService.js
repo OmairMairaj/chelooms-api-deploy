@@ -186,6 +186,10 @@ class ProductService {
         }
 
         // Child Option map
+        const asArray = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
+        const overlayNecklineIds = Object.keys(opt?.overlays?.necklines || {});
+        const overlayHemlineIds = Object.keys(opt?.overlays?.hemlines || {});
+        const overlaySleeveIds = Object.keys(opt?.overlays?.sleeves || {});
         grouped[cat.categoryId].options.push({
           id: opt.frontendId || opt.optionId,
           // Expose both aliases so callers (e.g. default_design translator)
@@ -205,6 +209,13 @@ class ProductService {
           premium: (opt.isPremium ?? opt.premium) || false,
           premium_price: opt.premiumPrice || null,
           overlays: opt.overlays || undefined, // For embellishments
+          // Eligibility contract for embellishments:
+          // option is valid when (neckline in allowedNecklines) AND (hemline in allowedHemlines)
+          // (+ sleeves when provided). Merge explicit arrays with overlay target keys so
+          // older admin payloads still behave correctly.
+          allowedNecklines: Array.from(new Set([...asArray(opt.allowedNecklines), ...overlayNecklineIds])),
+          allowedHemlines: Array.from(new Set([...asArray(opt.allowedHemlines), ...overlayHemlineIds])),
+          allowedSleeves: Array.from(new Set([...asArray(opt.allowedSleeves), ...overlaySleeveIds])),
           shapeTag: opt.shapeTag || undefined,
           colors: opt.colors || undefined // For hemlines
         });

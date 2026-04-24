@@ -1,5 +1,21 @@
 const savedDesignService = require('../services/savedDesignService');
 
+const toPublicUploadUrl = (fileLike) => {
+  if (!fileLike) return null;
+  if (typeof fileLike.secure_url === 'string' && fileLike.secure_url.trim()) {
+    return fileLike.secure_url.trim();
+  }
+  if (typeof fileLike.path === 'string' && fileLike.path.trim()) {
+    const normalized = fileLike.path.replace(/\\/g, '/');
+    const uploadsIdx = normalized.toLowerCase().indexOf('/uploads/');
+    if (uploadsIdx >= 0) return normalized.slice(uploadsIdx);
+  }
+  if (typeof fileLike.filename === 'string' && fileLike.filename.trim()) {
+    return `/uploads/${fileLike.filename.trim()}`;
+  }
+  return null;
+};
+
 const savedDesignController = {
   
   //   console.log("👉 [SAVE DESIGN] Step 1: Request hit the controller!");
@@ -111,12 +127,12 @@ const savedDesignController = {
       console.log("🕵️ Check req.file:", req.file ? "File Exists" : "Undefined");
       console.log("🕵️ Check req.files:", req.files ? "Files Object Exists" : "Undefined");
 
-      if (req.file && req.file.path) {
-        thumbnailUrl = req.file.path;
+      if (req.file) {
+        thumbnailUrl = toPublicUploadUrl(req.file);
         console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded via req.file");
       } 
       else if (req.files && req.files.thumbnail && req.files.thumbnail.length > 0) {
-        thumbnailUrl = req.files.thumbnail[0].path; 
+        thumbnailUrl = toPublicUploadUrl(req.files.thumbnail[0]); 
         console.log("👉 [SAVE DESIGN] Step 3: Thumbnail uploaded via req.files");
       } 
       else {
@@ -244,6 +260,25 @@ const savedDesignController = {
   // GET ALL PUBLISHED DESIGNS (Gallery)
   async getPublishedDesigns(req, res) {
     try {
+      const byId = req.query.saveDesignId || req.query.designId;
+      if (byId && String(byId).trim()) {
+        const row = await savedDesignService.getPublishedCanvasBySaveDesignId(String(byId).trim());
+        if (!row) {
+          return res.status(404).json({
+            success: false,
+            message: 'Published design not found.',
+          });
+        }
+        return res.status(200).json({
+          success: true,
+          data: {
+            saveDesignId: row.saveDesignId,
+            productId: row.productId,
+            canvasData: row.canvasData,
+          },
+        });
+      }
+
       // Optional Auth se User ID nikalna
       const userId = req.user ? req.user.user_id : null; 
       

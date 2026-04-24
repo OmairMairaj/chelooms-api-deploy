@@ -164,14 +164,40 @@ const orderConfirmationTemplate = (summary) => {
   }
 
   const itemRows = (summary.items || [])
-    .map(
-      (it) => `
+    .map((it) => {
+      const sizing = it?.sizing;
+      const measurements = sizing?.measurements && typeof sizing.measurements === 'object'
+        ? Object.entries(sizing.measurements)
+            .filter(([, value]) => value != null && value !== '')
+            .map(([key, value]) => `${escapeHtml(key)}: ${escapeHtml(String(value))}`)
+            .join(', ')
+        : '';
+      const recommendations = sizing?.recommendations && typeof sizing.recommendations === 'object'
+        ? Object.entries(sizing.recommendations)
+            .filter(([, value]) => value != null && value !== '')
+            .map(([key, value]) => `${escapeHtml(key)}: ${escapeHtml(String(value))}`)
+            .join(', ')
+        : '';
+      const sizingLines = [];
+      if (sizing?.profileNickname) sizingLines.push(`Profile: ${escapeHtml(String(sizing.profileNickname))}`);
+      if (sizing?.sizeLabel || sizing?.sizeCode) sizingLines.push(`Size: ${escapeHtml(String(sizing.sizeLabel || sizing.sizeCode))}`);
+      if (measurements) sizingLines.push(`Measurements: ${measurements}`);
+      if (recommendations) sizingLines.push(`Recommendations: ${recommendations}`);
+      const sizingHtml = sizingLines.length
+        ? `<div style="margin-top:4px;font-size:12px;color:#666;">${sizingLines.join('<br/>')}</div>`
+        : '';
+      const imageUrl = it?.image ? escapeHtml(String(it.image)) : '';
+      const imageCell = imageUrl
+        ? `<img src="${imageUrl}" alt="${escapeHtml(it.name)}" width="56" height="56" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid #eee;" />`
+        : `<div style="width:56px;height:56px;border:1px solid #eee;border-radius:6px;background:#f7f7f7;display:flex;align-items:center;justify-content:center;font-size:10px;color:#999;">No image</div>`;
+      return `
       <tr>
-        <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(it.name)}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;width:72px;">${imageCell}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">${escapeHtml(it.name)}${sizingHtml}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;">${escapeHtml(String(it.quantity))}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;">${it.totalPrice != null ? Number(it.totalPrice).toFixed(2) : '—'}</td>
-      </tr>`
-    )
+      </tr>`;
+    })
     .join('');
 
   return `
@@ -195,6 +221,7 @@ const orderConfirmationTemplate = (summary) => {
             <table style="width:100%;border-collapse:collapse;font-size:14px;">
               <thead>
                 <tr style="background:#f4f4f4;">
+                  <th style="padding:8px;text-align:left;">Image</th>
                   <th style="padding:8px;text-align:left;">Product</th>
                   <th style="padding:8px;text-align:center;">Qty</th>
                   <th style="padding:8px;text-align:right;">Line total</th>

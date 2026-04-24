@@ -33,7 +33,24 @@ const protect = async (req, res, next) => {
                     first_name: true,
                     last_name: true,
                     email: true,
-                    role: true // 👈 Ye zaroori hai agle middleware ke liye
+                    role: true, // 👈 Ye zaroori hai agle middleware ke liye
+                    mobile_number: true,
+                    profile_picture_url: true,
+                    addresses: {
+                        select: {
+                            id: true,
+                            label: true,
+                            fullName: true,
+                            phone: true,
+                            addressLine1: true,
+                            addressLine2: true,
+                            city: true,
+                            province: true,
+                            postalCode: true,
+                            country: true,
+                            isDefault: true
+                        }
+                    }
                 }
             });
 

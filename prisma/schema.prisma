@@ -207,6 +207,7 @@ model AuthAuditLog {
 model InventoryCategory {
   id          Int             @id @default(autoincrement())
   name        String          @unique
+  slug        String?         @unique
   type        InventoryType
   description String?
   items       InventoryItem[]
@@ -224,6 +225,8 @@ model InventoryItem {
   name        String
   description String?
   sku         String? @unique
+  material    String?
+  tags        String[]          @default([])
 
   metadata Json? // { "designer": "XYZ", "width": "60inch" }
 

@@ -20,6 +20,23 @@ const getMyOrderHistory = async (req, res) => {
     }
 };
 
+const getMyOrderDetail = async (req, res) => {
+    try {
+        const userId = req.user.user_id;
+        const { orderId } = req.params;
+        const order = await orderService.getMyOrderById(userId, orderId);
+        res.status(200).json({
+            success: true,
+            message: "Order detail fetched successfully",
+            data: order,
+        });
+    } catch (error) {
+        console.error("Error fetching order detail:", error);
+        const status = error?.statusCode || 500;
+        res.status(status).json({ success: false, message: error.message || "Failed to fetch order detail" });
+    }
+};
+
 /** Admin / inventory: all orders for panel (paginated + filters) */
 const getAllOrdersAdmin = async (req, res) => {
     try {
@@ -36,7 +53,26 @@ const getAllOrdersAdmin = async (req, res) => {
     }
 };
 
+/** Admin: single order detail */
+const getOrderDetailAdmin = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const order = await orderService.getAdminOrderById(orderId);
+        res.status(200).json({
+            success: true,
+            message: "Order detail fetched successfully",
+            data: order,
+        });
+    } catch (error) {
+        console.error("Error fetching admin order detail:", error);
+        const status = error?.statusCode || 500;
+        res.status(status).json({ success: false, message: error.message || "Failed to fetch order detail" });
+    }
+};
+
 module.exports = {
     getMyOrderHistory,
+    getMyOrderDetail,
     getAllOrdersAdmin,
+    getOrderDetailAdmin,
 };

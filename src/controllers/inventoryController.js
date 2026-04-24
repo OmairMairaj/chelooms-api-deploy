@@ -1,11 +1,33 @@
 const posthog = require('../config/posthog');
 const inventoryService = require('../services/inventoryService');
 
+function parseCuratedTags(rawValue) {
+  if (!rawValue) return [];
+  let source = rawValue;
+  if (typeof source === 'string') {
+    const trimmed = source.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        source = JSON.parse(trimmed);
+      } catch (error) {
+        source = trimmed.split(',');
+      }
+    } else {
+      source = trimmed.split(',');
+    }
+  }
+
+  if (!Array.isArray(source)) return [];
+  return [...new Set(source
+    .map((tag) => String(tag || '').trim().toLowerCase().replace(/\s+/g, '-'))
+    .filter(Boolean))];
+}
+
 /**
  * Controller: Handles HTTP Requests for Inventory Module (M-02)
  */
 class InventoryController {
-
   // 1. Create Category
   async createCategory(req, res) {
     try {
@@ -91,6 +113,8 @@ class InventoryController {
         name: req.body.name.trim(),
         description: (req.body.description || "").trim(),
         sku: req.body.sku?.trim() || null,
+        material: req.body.material?.trim() || null,
+        tags: parseCuratedTags(req.body.curatedTags || req.body.tags),
         colorHex: req.body.colorHex?.trim() || null,
         colorName: req.body.colorName?.trim() || null,
         price,
@@ -448,6 +472,8 @@ class InventoryController {
         name: req.body.name,
         description: req.body.description,
         sku: req.body.sku,
+        material: req.body.material || null,
+        tags: parseCuratedTags(req.body.curatedTags || req.body.tags),
         colorHex: req.body.colorHex,
         colorName: req.body.colorName,
         price: req.body.price ? parseFloat(req.body.price) : undefined,
