@@ -17,6 +17,12 @@ router.get(
     authorize('Administrator', 'Inventory_Manager'),
     orderController.getOrderDetailAdmin
 );
+router.patch(
+    '/admin/:orderId',
+    protect,
+    authorize('Administrator', 'Inventory_Manager'),
+    orderController.updateOrderStatusAdmin
+);
 
 // Route: GET /api/orders/my-orders
 // User ki apni order history dekhne ke liye

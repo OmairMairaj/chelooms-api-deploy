@@ -21,6 +21,7 @@ const buttonOptionRoutes = require('./routes/DesignTool/buttonOptionRoutes');
 const productRoutes = require('./routes/DesignTool/productRoutes');
 const productCategoryRoutes = require('./routes/DesignTool/productCategoryRoutes');
 const savedDesignRoutes = require('./routes/savedDesignRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 const app = express();
 
 
@@ -277,6 +278,7 @@ app.get('/', (req, res) => {
 
 // --- Routes ---
 app.use('/api/v1', routes);
+app.use('/api/v1/admin', adminRoutes);
 app.use('/api/inventory', inventoryRoutes)
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/cart', cartRoutes);

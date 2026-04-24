@@ -70,9 +70,32 @@ const getOrderDetailAdmin = async (req, res) => {
     }
 };
 
+/** Admin: PATCH body { operationalStatus?, paymentStatus? } */
+const updateOrderStatusAdmin = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { operationalStatus, paymentStatus } = req.body || {};
+        const order = await orderService.updateAdminOrderStatus(
+            orderId,
+            { operationalStatus, paymentStatus },
+            req.user
+        );
+        res.status(200).json({
+            success: true,
+            message: 'Order status updated',
+            data: order,
+        });
+    } catch (error) {
+        console.error('Error updating admin order status:', error);
+        const status = error?.statusCode || 500;
+        res.status(status).json({ success: false, message: error.message || 'Failed to update order' });
+    }
+};
+
 module.exports = {
     getMyOrderHistory,
     getMyOrderDetail,
     getAllOrdersAdmin,
     getOrderDetailAdmin,
+    updateOrderStatusAdmin,
 };

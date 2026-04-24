@@ -1,5 +1,21 @@
 const { prisma } = require('../config/db');
 
+const OPERATIONAL_STATUS_VALUES = new Set([
+    'checkout_draft',
+    'checkout_abandoned',
+    'pending_payment',
+    'paid_processing',
+    'in_production',
+    'quality_check',
+    'ready_to_ship',
+    'shipped',
+    'delivered',
+    'cancelled',
+    'returned',
+]);
+
+const PAYMENT_STATUS_VALUES = new Set(['unpaid', 'paid', 'failed', 'refunded', 'partially_refunded']);
+
 const getMyOrderHistory = async (userId, queryParams) => {
     // Pagination parameters
     const page = parseInt(queryParams.page) || 1;
@@ -266,9 +282,89 @@ const getAdminOrderById = async (orderId) => {
     return { ...order, items };
 };
 
+/**
+ * Admin: update operational and/or payment status. Creates timeline entries when something changes.
+ */
+const updateAdminOrderStatus = async (orderId, { operationalStatus, paymentStatus }, actor = null) => {
+    const hasOp = operationalStatus !== undefined;
+    const hasPay = paymentStatus !== undefined;
+    if (!hasOp && !hasPay) {
+        const err = new Error('Provide at least one of operationalStatus or paymentStatus');
+        err.statusCode = 400;
+        throw err;
+    }
+
+    if (hasOp && !OPERATIONAL_STATUS_VALUES.has(operationalStatus)) {
+        const err = new Error('Invalid operationalStatus');
+        err.statusCode = 400;
+        throw err;
+    }
+    if (hasPay && !PAYMENT_STATUS_VALUES.has(paymentStatus)) {
+        const err = new Error('Invalid paymentStatus');
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const order = await prisma.order.findFirst({
+        where: { OR: [{ id: orderId }, { readableId: orderId }] },
+    });
+
+    if (!order) {
+        const err = new Error('Order not found');
+        err.statusCode = 404;
+        throw err;
+    }
+
+    const actorName = actor
+        ? [actor.first_name, actor.last_name].filter(Boolean).join(' ').trim() || actor.email || 'Admin'
+        : 'Admin';
+
+    const data = {};
+    if (hasOp) data.operationalStatus = operationalStatus;
+    if (hasPay) data.paymentStatus = paymentStatus;
+
+    const opChanged = hasOp && order.operationalStatus !== operationalStatus;
+    const payChanged = hasPay && order.paymentStatus !== paymentStatus;
+
+    if (!opChanged && !payChanged) {
+        return getAdminOrderById(order.id);
+    }
+
+    const timelineCreates = [];
+    if (opChanged) {
+        timelineCreates.push({
+            orderId: order.id,
+            statusFrom: order.operationalStatus,
+            statusTo: operationalStatus,
+            description: 'Operational status updated',
+            actorName,
+        });
+    }
+    if (payChanged) {
+        timelineCreates.push({
+            orderId: order.id,
+            statusFrom: null,
+            statusTo: null,
+            description: `Payment status: ${order.paymentStatus} → ${paymentStatus}`,
+            actorName,
+        });
+    }
+
+    await prisma.$transaction([
+        prisma.order.update({
+            where: { id: order.id },
+            data,
+        }),
+        ...timelineCreates.map((row) => prisma.orderTimeline.create({ data: row })),
+    ]);
+
+    return getAdminOrderById(order.id);
+};
+
 module.exports = {
     getMyOrderHistory,
     getMyOrderById,
     getAdminOrdersList,
     getAdminOrderById,
+    updateAdminOrderStatus,
 };
