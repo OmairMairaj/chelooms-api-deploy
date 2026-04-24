@@ -3,6 +3,7 @@ const prisma = new PrismaClient();
 const jwt = require('jsonwebtoken');
 const { sendOrderConfirmationEmail } = require('../services/emailService');
 const { computeOrderAmounts } = require('../utils/orderTotals');
+const { backfillDesignThumbnails } = require('../utils/designThumbnailBackfill');
 
 const checkoutController = {
 
@@ -432,6 +433,9 @@ const checkoutController = {
           }
         }
       });
+      if (fullOrder && Array.isArray(fullOrder.items)) {
+        fullOrder.items = await backfillDesignThumbnails(fullOrder.items);
+      }
       const standardSizeIds = (fullOrder.items || [])
         .map((item) => item?.attributes?.standardSizeId)
         .filter((id) => Number.isInteger(id));

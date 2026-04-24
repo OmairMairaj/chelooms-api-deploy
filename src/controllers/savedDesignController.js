@@ -1,18 +1,41 @@
 const savedDesignService = require('../services/savedDesignService');
 
+// Normalize a multer file object to a web-accessible URL that can be stored in DB.
+// Supports three cases:
+//   1. Cloudinary storage — file.path or file.secure_url is already a full https URL.
+//   2. Local disk storage — file.path is an absolute filesystem path under /uploads/.
+//   3. Fallback — file.filename is a local disk filename.
 const toPublicUploadUrl = (fileLike) => {
   if (!fileLike) return null;
-  if (typeof fileLike.secure_url === 'string' && fileLike.secure_url.trim()) {
+
+  // 1. Cloudinary: secure_url is present when multer-storage-cloudinary is active.
+  if (typeof fileLike.secure_url === 'string' && /^https?:\/\//i.test(fileLike.secure_url.trim())) {
     return fileLike.secure_url.trim();
   }
+
+  // 2. Cloudinary also sets file.path to the secure_url string (full http(s) URL).
+  //    Local disk sets file.path to an absolute filesystem path that contains "/uploads/".
   if (typeof fileLike.path === 'string' && fileLike.path.trim()) {
-    const normalized = fileLike.path.replace(/\\/g, '/');
+    const rawPath = fileLike.path.trim();
+    // If file.path is already an absolute http(s) URL → treat it as the final URL (Cloudinary case).
+    if (/^https?:\/\//i.test(rawPath)) return rawPath;
+    const normalized = rawPath.replace(/\\/g, '/');
     const uploadsIdx = normalized.toLowerCase().indexOf('/uploads/');
     if (uploadsIdx >= 0) return normalized.slice(uploadsIdx);
   }
-  if (typeof fileLike.filename === 'string' && fileLike.filename.trim()) {
+
+  // 3. Only fall back to /uploads/<filename> when Cloudinary is NOT active.
+  //    When Cloudinary is active, file.filename is the Cloudinary public_id (NOT a local filename)
+  //    so wrapping it in /uploads/ would produce a broken URL.
+  const cloudinaryActive = Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+    process.env.CLOUDINARY_API_KEY &&
+    process.env.CLOUDINARY_API_SECRET
+  );
+  if (!cloudinaryActive && typeof fileLike.filename === 'string' && fileLike.filename.trim()) {
     return `/uploads/${fileLike.filename.trim()}`;
   }
+
   return null;
 };
 

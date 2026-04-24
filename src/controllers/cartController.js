@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { computeOrderAmounts } = require('../utils/orderTotals');
+const { backfillDesignThumbnails } = require('../utils/designThumbnailBackfill');
 
 // Helper: line items se subtotal, phir tax 10% + shipping 200 → order row update
 const calculateOrderTotal = async (orderId) => {
@@ -260,10 +261,13 @@ const cartController = {
         include: { items: true }
       });
 
+      const enrichedItems = await backfillDesignThumbnails(updatedCart?.items || []);
+      const responseCart = updatedCart ? { ...updatedCart, items: enrichedItems } : updatedCart;
+
       res.status(200).json({
         success: true,
         message: "Item added to cart successfully!",
-        cart: updatedCart
+        cart: responseCart
       });
 
     } catch (error) {
@@ -301,7 +305,10 @@ const cartController = {
         return res.status(200).json({ success: true, message: "Cart is empty", cart: null });
       }
 
-      res.status(200).json({ success: true, data: cart });
+      const enrichedItems = await backfillDesignThumbnails(cart.items || []);
+      const responseCart = { ...cart, items: enrichedItems };
+
+      res.status(200).json({ success: true, data: responseCart });
 
     } catch (error) {
       console.error("Get Cart Error:", error);
