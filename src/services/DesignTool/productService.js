@@ -3,6 +3,11 @@ const prisma = new PrismaClient();
 
 class ProductService {
   async createProduct(data) {
+    const maxSort = await prisma.product.aggregate({
+      where: { productCategoryId: data.productCategoryId },
+      _max: { sortOrder: true },
+    });
+    const nextSortOrder = (maxSort._max.sortOrder ?? -1) + 1;
     const product = await prisma.product.create({
       data: {
         name: data.name,
@@ -24,7 +29,8 @@ class ProductService {
         allowedEmbellishmentOptionIds: data.allowedEmbellishmentOptionIds || [],
 
         // 🎨 Default Design
-        defaultDesign: data.defaultDesign || {}
+        defaultDesign: data.defaultDesign || {},
+        sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : nextSortOrder,
       }
     });
 
@@ -55,10 +61,14 @@ class ProductService {
     const products = await prisma.product.findMany({
       skip: skip,
       take: limit,
-      orderBy: { createdAt: 'desc' }, 
+      orderBy: [
+        { productCategory: { sortOrder: 'asc' } },
+        { sortOrder: 'asc' },
+        { createdAt: 'desc' },
+      ], 
       include: {
         productCategory: {
-          select: { name: true } 
+          select: { name: true, sortOrder: true } 
         }
       }
     });
@@ -367,7 +377,7 @@ class ProductService {
 
       // 📊 Spec Display Summary
       spec_display: {
-        fabric: fabricsData.length > 0 ? fabricsData[0].name : "Standard",
+        fabric: `${product.allowedFabricIds?.length || 0} fabrics`,
         neckStyles: `${product.allowedNecklineOptionIds.length} lengths`,
         sleeves: `${product.allowedSleeveOptionIds.length} lengths`,
         hemline: `${product.allowedHemlineOptionIds.length} lengths`,
@@ -546,16 +556,6 @@ class ProductService {
     // 2. Format the response to match the exact shell structure
     const formattedProducts = await Promise.all(products.map(async (product) => {
       
-      // Fabric ka naam nikalne ke liye choti si query (taake spec_display perfect rahay)
-      let defaultFabricName = "Standard";
-      if (product.allowedFabricIds && product.allowedFabricIds.length > 0) {
-        const firstFabric = await prisma.inventoryItem.findUnique({
-          where: { id: product.allowedFabricIds[0] },
-          select: { name: true }
-        });
-        if (firstFabric) defaultFabricName = firstFabric.name;
-      }
-
       return {
         product_id: product.id,
         name: product.name,
@@ -572,7 +572,7 @@ class ProductService {
 
         // 📊 Spec Display Summary (Sirf counts bhej rahe hain)
         spec_display: {
-          fabric: defaultFabricName,
+          fabric: `${product.allowedFabricIds?.length || 0} fabrics`,
           neckStyles: `${product.allowedNecklineOptionIds?.length || 0} styles`,
           sleeves: `${product.allowedSleeveOptionIds?.length || 0} styles`,
           hemline: `${product.allowedHemlineOptionIds?.length || 0} styles`,
@@ -598,34 +598,22 @@ class ProductService {
       where: { isActive: true },
       include: {
         products: {
-          where: { status: "Publish" }
+          where: { status: "Publish" },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
         }
-      }
+      },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
 
     const groupedData = [];
 
     // 2. Loop through categories and format
     for (const category of categories) {
-      // Agar kisi category mein koi product nahi hai, toh usko skip kar do
-      if (!category.products || category.products.length === 0) {
-        continue;
-      }
-
       // Products ko format karo
-      const formattedProducts = await Promise.all(category.products.map(async (product) => {
-        // Fabric ka naam nikalne ke liye
-        let defaultFabricName = "Standard";
-        if (product.allowedFabricIds && product.allowedFabricIds.length > 0) {
-          const firstFabric = await prisma.inventoryItem.findUnique({
-            where: { id: product.allowedFabricIds[0] },
-            select: { name: true }
-          });
-          if (firstFabric) defaultFabricName = firstFabric.name;
-        }
-
+      const formattedProducts = await Promise.all((category.products || []).map(async (product) => {
         return {
           product_id: product.id,
+          sortOrder: product.sortOrder,
           name: product.name,
           category: category.name,
           images: product.images || [],
@@ -641,7 +629,7 @@ class ProductService {
 
           // 📊 Spec Display Summary
           spec_display: {
-            fabric: defaultFabricName,
+            fabric: `${product.allowedFabricIds?.length || 0} fabrics`,
             neckStyles: `${product.allowedNecklineOptionIds?.length || 0} styles`,
             sleeves: `${product.allowedSleeveOptionIds?.length || 0} styles`,
             hemline: `${product.allowedHemlineOptionIds?.length || 0} styles`,
@@ -653,15 +641,26 @@ class ProductService {
         };
       }));
 
-      // Group format build karna
+      // Group format build karna (empty categories are intentionally included)
       groupedData.push({
         categoryId: category.productCategoryId, // Aapka naya primary key standard
         name: category.name,
+        sortOrder: category.sortOrder,
         products: formattedProducts
       });
     }
 
     return groupedData;
+  }
+
+  async reorderProducts(orderedIds = [], productCategoryId = null) {
+    const tx = orderedIds.map((id, index) =>
+      prisma.product.update({
+        where: { id },
+        data: { sortOrder: index },
+      })
+    );
+    return prisma.$transaction(tx);
   }
 
 }

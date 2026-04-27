@@ -4,9 +4,14 @@ const prisma = new PrismaClient();
 class ProductCategoryService {
   // Create
   async createCategory(data) {
+    const maxSort = await prisma.productCategory.aggregate({ _max: { sortOrder: true } });
+    const nextSortOrder = (maxSort._max.sortOrder ?? -1) + 1;
     // data mein name, description, isActive aayega
     return await prisma.productCategory.create({
-      data
+      data: {
+        ...data,
+        sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : nextSortOrder,
+      }
     });
   }
 
@@ -15,7 +20,7 @@ class ProductCategoryService {
     const where = includeInactive ? {} : { isActive: true };
     return await prisma.productCategory.findMany({
       where,
-      orderBy: { createdAt: 'desc' }
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }]
     });
   }
 
@@ -39,6 +44,16 @@ class ProductCategoryService {
     return await prisma.productCategory.delete({
       where: { productCategoryId }
     });
+  }
+
+  async reorderCategories(orderedIds = []) {
+    const tx = orderedIds.map((id, index) =>
+      prisma.productCategory.update({
+        where: { productCategoryId: id },
+        data: { sortOrder: index },
+      })
+    );
+    return prisma.$transaction(tx);
   }
 }
 

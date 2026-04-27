@@ -57,6 +57,20 @@ class ProductCategoryController {
       res.status(500).json({ success: false, message: "Cannot delete category, it might be linked to existing products." });
     }
   }
+
+  // POST /api/product-categories/reorder
+  async reorderCategories(req, res) {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "orderedIds array is required." });
+      }
+      await productCategoryService.reorderCategories(orderedIds);
+      return res.status(200).json({ success: true, message: "Category order updated." });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
 }
 
 module.exports = new ProductCategoryController();

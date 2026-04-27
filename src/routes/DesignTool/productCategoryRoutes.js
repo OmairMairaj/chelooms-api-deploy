@@ -9,6 +9,9 @@ router.post('/', productCategoryController.createCategory);
 // READ ALL (Use ?all=true in query to fetch inactive ones too)
 router.get('/', productCategoryController.getAllCategories);
 
+// REORDER
+router.post('/reorder', productCategoryController.reorderCategories);
+
 // READ SINGLE
 router.get('/:id', productCategoryController.getCategoryById);
 

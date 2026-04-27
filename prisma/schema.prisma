@@ -736,6 +736,7 @@ model Product {
   name                          String
   productCategoryId      String   @map("product_category_id")
   productCategory        ProductCategory @relation(fields: [productCategoryId], references: [productCategoryId])
+  sortOrder                     Int      @default(0) @map("sort_order")
   pieceType                     String   @map("piece_type") // e.g., "3 piece"
   
   // Pricing & Status
@@ -784,6 +785,7 @@ model ProductCategory {
   name              String    @unique // e.g., "Kameez", "Kurta", "Trouser"
   description       String?
   isActive          Boolean   @default(true)
+  sortOrder         Int       @default(0) @map("sort_order")
   
   // Relation to Products
   products          Product[] 

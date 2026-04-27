@@ -37,6 +37,7 @@ router.get('/grouped/categories', productController.getAllGroupedProducts);
 
 // Get all products (Admin ke liye)
 router.get('/admin/products', productController.getAllProducts);
+router.post('/admin/products/reorder', productController.reorderProducts);
 
 // Update product
 router.patch(

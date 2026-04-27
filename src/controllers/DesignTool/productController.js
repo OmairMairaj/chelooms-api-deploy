@@ -300,6 +300,21 @@ class ProductController {
     }
   }
 
+  // POST /api/products/admin/products/reorder
+  async reorderProducts(req, res) {
+    try {
+      const { orderedIds, productCategoryId } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ success: false, message: "orderedIds array is required." });
+      }
+      await productService.reorderProducts(orderedIds, productCategoryId);
+      return res.status(200).json({ success: true, message: "Product order updated." });
+    } catch (error) {
+      console.error("Reorder Products Error:", error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
 }
 
 module.exports = new ProductController();
