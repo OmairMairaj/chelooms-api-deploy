@@ -1,5 +1,111 @@
 const { prisma } = require('../config/db');
 
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+const normalizeColorEntry = (entry, source = 'unknown') => {
+  if (!entry) return null;
+  if (typeof entry === 'string') {
+    const maybeHex = entry.trim();
+    if (!maybeHex) return null;
+    return {
+      id: `${source}-${maybeHex.toLowerCase()}`,
+      name: maybeHex,
+      hex: maybeHex.startsWith('#') ? maybeHex : undefined,
+      source,
+    };
+  }
+  if (typeof entry === 'object') {
+    const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+    const hex = typeof entry.hex === 'string' ? entry.hex.trim() : '';
+    const id =
+      (typeof entry.id === 'string' && entry.id.trim()) ||
+      `${source}-${(name || hex || 'color').toLowerCase().replace(/\s+/g, '-')}`;
+    if (!name && !hex) return null;
+    return {
+      id,
+      name: name || hex || 'Color',
+      hex: hex || undefined,
+      source,
+    };
+  }
+  return null;
+};
+
+const dedupeColors = (colors = []) => {
+  const map = new Map();
+  for (const color of colors) {
+    if (!color) continue;
+    const key = `${(color.name || '').toLowerCase()}|${(color.hex || '').toLowerCase()}`;
+    if (!map.has(key)) map.set(key, color);
+  }
+  return Array.from(map.values());
+};
+
+const resolveFabricColors = (fabricColorsRaw) => {
+  if (!fabricColorsRaw) return [];
+  if (Array.isArray(fabricColorsRaw)) {
+    return dedupeColors(fabricColorsRaw.map((c) => normalizeColorEntry(c, 'fabric')).filter(Boolean));
+  }
+  if (typeof fabricColorsRaw === 'object') {
+    const pairs = Object.entries(fabricColorsRaw)
+      .map(([key, val]) => normalizeColorEntry({ id: key, name: key, hex: typeof val === 'string' ? val : undefined }, 'fabric'))
+      .filter(Boolean);
+    return dedupeColors(pairs);
+  }
+  return [];
+};
+
+const resolveEmbellishmentColors = (rawColors, selectedColorId) => {
+  const colors = asArray(rawColors)
+    .map((c) => normalizeColorEntry(c, 'embellishment'))
+    .filter(Boolean);
+  if (!selectedColorId) return dedupeColors(colors);
+  const selected = colors.find((c) => c.id === selectedColorId);
+  if (selected) return [selected];
+  return dedupeColors(colors);
+};
+
+async function deriveDesignColorsFromCanvas(canvasData) {
+  if (!canvasData || typeof canvasData !== 'object') return [];
+
+  const derived = [];
+  const fabricId = canvasData?.fabric?.option_1_id;
+  if (typeof fabricId === 'string' && fabricId.trim()) {
+    const fabric = await prisma.inventoryItem.findUnique({
+      where: { id: fabricId.trim() },
+      include: { fabricProfile: { select: { colors: true } } },
+    });
+    const fabricColors = resolveFabricColors(fabric?.fabricProfile?.colors);
+    derived.push(...fabricColors);
+  }
+
+  const embellishment = canvasData?.embellishment || {};
+  const embellishmentVariationId =
+    (typeof embellishment.variation_id === 'string' && embellishment.variation_id.trim()) || null;
+  const embellishmentStyleId =
+    (typeof embellishment.style_id === 'string' && embellishment.style_id.trim()) || null;
+  const embellishmentColorId =
+    (typeof embellishment.color_id === 'string' && embellishment.color_id.trim()) || null;
+
+  if (embellishmentVariationId || embellishmentStyleId) {
+    const embOption = await prisma.embellishmentOption.findFirst({
+      where: {
+        OR: [
+          embellishmentVariationId ? { frontendId: embellishmentVariationId } : undefined,
+          embellishmentVariationId ? { optionId: embellishmentVariationId } : undefined,
+          embellishmentStyleId ? { frontendId: embellishmentStyleId } : undefined,
+          embellishmentStyleId ? { optionId: embellishmentStyleId } : undefined,
+        ].filter(Boolean),
+      },
+      select: { colors: true },
+    });
+    const embellishmentColors = resolveEmbellishmentColors(embOption?.colors, embellishmentColorId);
+    derived.push(...embellishmentColors);
+  }
+
+  return dedupeColors(derived);
+}
+
 const savedDesignService = {
   
   async saveNewDesign(data) {
@@ -8,6 +114,12 @@ const savedDesignService = {
 
       const parsedRatio = Number(data.aspectRatio);
       const aspectRatio = Number.isFinite(parsedRatio) && parsedRatio > 0 ? parsedRatio : 1.0;
+
+      const providedColors = asArray(data.colors)
+        .map((c) => normalizeColorEntry(c, 'design'))
+        .filter(Boolean);
+      const resolvedColors =
+        providedColors.length > 0 ? dedupeColors(providedColors) : await deriveDesignColorsFromCanvas(data.canvasData);
 
       // 🚨 Hum Transaction use kar rahe hain taake dono kaam ek sath hon
       const result = await prisma.$transaction(async (tx) => {
@@ -27,7 +139,7 @@ const savedDesignService = {
             finalPrice: data.finalPrice,
             currency: data.currency,
             pricingBreakdown: data.pricingBreakdown,
-            colors: data.colors || null,
+            colors: resolvedColors.length > 0 ? resolvedColors : null,
             // 👇 Remix Link: Agar data mein original design ki ID hai toh save hogi
             remixedFromId: data.remixedFromId || null 
           }
