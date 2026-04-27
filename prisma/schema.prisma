@@ -242,6 +242,13 @@ model InventoryItem {
 
   isActive Boolean @default(true)
 
+  // 👇 SOCIAL FEATURES FOR PHYSICAL ITEMS
+  viewsCount  Int @default(0)
+  likesCount  Int @default(0)
+  
+  // Relation for Likes
+  likes       InventoryItemLike[]
+
   auditLogs  InventoryAuditLog[]
   orderItems OrderItem[]
 
@@ -849,4 +856,18 @@ model DesignLike {
 
   // 🚨 SMART CHECK: Ek user ek design ko sirf 1 dafa like kar sakta hai
   @@unique([userId, designId])
+}
+
+
+// 👇 NAYA MODEL: Inventory items ke likes track karne ke liye
+model InventoryItemLike {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id") // Jis user ne like kiya
+  inventoryItemId String        @map("inventory_item_id")
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+
+  // Ek user ek fabric ko sirf 1 baar like kar sake
+  @@unique([userId, inventoryItemId])
+  @@map("inventory_item_likes")
 }

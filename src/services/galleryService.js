@@ -85,24 +85,18 @@ class GalleryService {
     };
   }
 
-  // Filters, Page aur Limit accept karega
-  async getDisplayItems(filters, page = 1, limit = 12) {
+  // 👇 userId parameter yahan add kiya hai
+  async getDisplayItems(filters, page = 1, limit = 12, userId = null) {
     const skip = (page - 1) * limit;
     
-    // Dynamic Where Clause Banana
+    // Dynamic Where Clause Banana (Aapka purana code same rahega)
     const whereClause = {
-      // Rule 1: Customer ko wahi dikhao jo actually stock mein ho
       stockQuantity: { gt: 0 },
-      // Rule 2: (The Golden Rule) Sirf wo dikhao jo Admin ne active rakha hai
       isActive: true 
     };
 
-    if (filters.categoryId) {
-      whereClause.categoryId = parseInt(filters.categoryId);
-    }
-    if (filters.type) {
-      whereClause.category = { ...(whereClause.category || {}), type: String(filters.type).toUpperCase() };
-    }
+    if (filters.categoryId) whereClause.categoryId = parseInt(filters.categoryId);
+    if (filters.type) whereClause.category = { ...(whereClause.category || {}), type: String(filters.type).toUpperCase() };
 
     if (filters.q) {
       const query = String(filters.q).trim();
@@ -113,13 +107,7 @@ class GalleryService {
           { sku: { contains: query, mode: 'insensitive' } },
           { colorName: { contains: query, mode: 'insensitive' } },
           { material: { contains: query, mode: 'insensitive' } },
-          {
-            fabricProfile: {
-              is: {
-                fabricType: { contains: query, mode: 'insensitive' },
-              },
-            },
-          },
+          { fabricProfile: { is: { fabricType: { contains: query, mode: 'insensitive' } } } },
         ];
       }
     }
@@ -129,26 +117,16 @@ class GalleryService {
       whereClause.OR = [
         ...(whereClause.OR || []),
         { tags: { hasSome: normalizedTags } },
-        {
-          metadata: {
-            path: ['tags'],
-            array_contains: normalizedTags,
-          },
-        },
+        { metadata: { path: ['tags'], array_contains: normalizedTags } },
       ];
     }
 
-    if (filters.material) {
-      whereClause.material = { contains: String(filters.material), mode: 'insensitive' };
-    }
+    if (filters.material) whereClause.material = { contains: String(filters.material), mode: 'insensitive' };
 
     if (filters.fabricType || filters.isPremium !== undefined) {
       whereClause.fabricProfile = { is: {} };
       if (filters.fabricType) {
-        whereClause.fabricProfile.is.fabricType = {
-          contains: String(filters.fabricType),
-          mode: 'insensitive',
-        };
+        whereClause.fabricProfile.is.fabricType = { contains: String(filters.fabricType), mode: 'insensitive' };
       }
       if (filters.isPremium !== undefined) {
         whereClause.fabricProfile.is.isPremium = filters.isPremium === true || filters.isPremium === 'true';
@@ -156,10 +134,7 @@ class GalleryService {
     }
 
     if (filters.color) {
-      whereClause.colorName = { 
-        contains: filters.color, 
-        mode: 'insensitive' // case-insensitive search (red == RED)
-      };
+      whereClause.colorName = { contains: filters.color, mode: 'insensitive' };
     }
 
     if (filters.minPrice || filters.maxPrice) {
@@ -169,62 +144,44 @@ class GalleryService {
     }
 
     // ==========================================
-    // 🚀 DYNAMIC SORTING LOGIC START
+    // 🚀 DYNAMIC SORTING LOGIC (Updated with Likes/Views)
     // ==========================================
-    let orderByClause = { createdAt: 'desc' }; // Default: Newest pehle aayega
+    let orderByClause = { createdAt: 'desc' };
 
     if (filters.sort) {
       switch (filters.sort) {
-        case 'price_desc': // Price: High to Low
-          orderByClause = { price: 'desc' };
-          break;
-        case 'price_asc':  // Price: Low to High
-          orderByClause = { price: 'asc' };
-          break;
-        case 'newest':     // Newest
-          orderByClause = { createdAt: 'desc' };
-          break;
-        // 'trending' ko abhi ignore kiya hai jaisa aapne kaha tha
-        default:
-          orderByClause = { createdAt: 'desc' };
+        case 'price_desc': orderByClause = { price: 'desc' }; break;
+        case 'price_asc':  orderByClause = { price: 'asc' }; break;
+        case 'most-liked': orderByClause = { likesCount: 'desc' }; break; // Sabse zyada likes
+        case 'trending':   orderByClause = { viewsCount: 'desc' }; break; // Sabse zyada views
+        case 'newest':
+        default:           orderByClause = { createdAt: 'desc' }; break;
       }
     }
-    // ==========================================
-    // DYNAMIC SORTING LOGIC END
-    // ==========================================
 
-    // Database Query: Data aur Total Count dono ek sath nikalna
+    // Database Query
     const [items, totalCount] = await Promise.all([
       prisma.inventoryItem.findMany({
         where: whereClause,
         skip: skip,
         take: limit,
-        // DHYAN DEIN: Hum yahan selectively data bhej rahe hain
         select: {
-          id: true,
-          name: true,
-          description: true,
-          material: true,
-          tags: true,
-          metadata: true,
-          price: true,
-          images: true, // Cloudinary URLs yahan aayengi
-          colorName: true,
-          colorHex: true,
-          stockQuantity: true,
-          lowStockThreshold: true,
-          fabricProfile: {
-            select: {
-              fabricType: true,
-              isPremium: true,
-              premiumPrice: true,
-            },
-          },
-          category: {
-            select: { id: true, name: true, type: true, slug: true }
-          }
+          id: true, name: true, description: true, material: true, tags: true, 
+          metadata: true, price: true, images: true, colorName: true, colorHex: true, 
+          stockQuantity: true, lowStockThreshold: true,
+          fabricProfile: { select: { fabricType: true, isPremium: true, premiumPrice: true } },
+          category: { select: { id: true, name: true, type: true, slug: true } },
+          // 👇 Nayi Fields fetch kar rahe hain
+          viewsCount: true,
+          likesCount: true,
+          ...(userId && {
+            likes: {
+              where: { userId: userId },
+              select: { id: true }
+            }
+          })
         },
-        orderBy: orderByClause // Ab hardcoded nahi, dynamic hai!
+        orderBy: orderByClause
       }),
       prisma.inventoryItem.count({ where: whereClause })
     ]);
@@ -236,13 +193,14 @@ class GalleryService {
       const fabricTypeTag = item.fabricProfile?.fabricType ? this.normalizeTags([item.fabricProfile.fabricType]) : [];
       const premiumTag = item.fabricProfile?.isPremium ? ['premium'] : [];
       const tags = [...new Set([
-        ...normalizedTagsFromDb,
-        ...normalizedTagsFromMeta,
-        ...materialTag,
-        ...fabricTypeTag,
-        ...premiumTag,
+        ...normalizedTagsFromDb, ...normalizedTagsFromMeta, ...materialTag, ...fabricTypeTag, ...premiumTag
       ])];
-      return { ...item, tags };
+      
+      // 👇 isLiked Logic
+      const isLiked = item.likes && item.likes.length > 0;
+      const { likes, ...cleanItem } = item; // 'likes' array ko response se hata do
+
+      return { ...cleanItem, tags, isLiked };
     });
 
     return {
@@ -254,6 +212,222 @@ class GalleryService {
         itemsPerPage: limit
       }
     };
+  }
+  // Filters, Page aur Limit accept karega
+  // async getDisplayItems(filters, page = 1, limit = 12) {
+  //   const skip = (page - 1) * limit;
+    
+  //   // Dynamic Where Clause Banana
+  //   const whereClause = {
+  //     // Rule 1: Customer ko wahi dikhao jo actually stock mein ho
+  //     stockQuantity: { gt: 0 },
+  //     // Rule 2: (The Golden Rule) Sirf wo dikhao jo Admin ne active rakha hai
+  //     isActive: true 
+  //   };
+
+  //   if (filters.categoryId) {
+  //     whereClause.categoryId = parseInt(filters.categoryId);
+  //   }
+  //   if (filters.type) {
+  //     whereClause.category = { ...(whereClause.category || {}), type: String(filters.type).toUpperCase() };
+  //   }
+
+  //   if (filters.q) {
+  //     const query = String(filters.q).trim();
+  //     if (query) {
+  //       whereClause.OR = [
+  //         { name: { contains: query, mode: 'insensitive' } },
+  //         { description: { contains: query, mode: 'insensitive' } },
+  //         { sku: { contains: query, mode: 'insensitive' } },
+  //         { colorName: { contains: query, mode: 'insensitive' } },
+  //         { material: { contains: query, mode: 'insensitive' } },
+  //         {
+  //           fabricProfile: {
+  //             is: {
+  //               fabricType: { contains: query, mode: 'insensitive' },
+  //             },
+  //           },
+  //         },
+  //       ];
+  //     }
+  //   }
+
+  //   const normalizedTags = this.normalizeTags(this.parseCsvList(filters.tags));
+  //   if (normalizedTags.length > 0) {
+  //     whereClause.OR = [
+  //       ...(whereClause.OR || []),
+  //       { tags: { hasSome: normalizedTags } },
+  //       {
+  //         metadata: {
+  //           path: ['tags'],
+  //           array_contains: normalizedTags,
+  //         },
+  //       },
+  //     ];
+  //   }
+
+  //   if (filters.material) {
+  //     whereClause.material = { contains: String(filters.material), mode: 'insensitive' };
+  //   }
+
+  //   if (filters.fabricType || filters.isPremium !== undefined) {
+  //     whereClause.fabricProfile = { is: {} };
+  //     if (filters.fabricType) {
+  //       whereClause.fabricProfile.is.fabricType = {
+  //         contains: String(filters.fabricType),
+  //         mode: 'insensitive',
+  //       };
+  //     }
+  //     if (filters.isPremium !== undefined) {
+  //       whereClause.fabricProfile.is.isPremium = filters.isPremium === true || filters.isPremium === 'true';
+  //     }
+  //   }
+
+  //   if (filters.color) {
+  //     whereClause.colorName = { 
+  //       contains: filters.color, 
+  //       mode: 'insensitive' // case-insensitive search (red == RED)
+  //     };
+  //   }
+
+  //   if (filters.minPrice || filters.maxPrice) {
+  //     whereClause.price = {};
+  //     if (filters.minPrice) whereClause.price.gte = parseFloat(filters.minPrice);
+  //     if (filters.maxPrice) whereClause.price.lte = parseFloat(filters.maxPrice);
+  //   }
+
+  //   // ==========================================
+  //   // 🚀 DYNAMIC SORTING LOGIC START
+  //   // ==========================================
+  //   let orderByClause = { createdAt: 'desc' }; // Default: Newest pehle aayega
+
+  //   if (filters.sort) {
+  //     switch (filters.sort) {
+  //       case 'price_desc': // Price: High to Low
+  //         orderByClause = { price: 'desc' };
+  //         break;
+  //       case 'price_asc':  // Price: Low to High
+  //         orderByClause = { price: 'asc' };
+  //         break;
+  //       case 'newest':     // Newest
+  //         orderByClause = { createdAt: 'desc' };
+  //         break;
+  //       // 'trending' ko abhi ignore kiya hai jaisa aapne kaha tha
+  //       default:
+  //         orderByClause = { createdAt: 'desc' };
+  //     }
+  //   }
+  //   // ==========================================
+  //   // DYNAMIC SORTING LOGIC END
+  //   // ==========================================
+
+  //   // Database Query: Data aur Total Count dono ek sath nikalna
+  //   const [items, totalCount] = await Promise.all([
+  //     prisma.inventoryItem.findMany({
+  //       where: whereClause,
+  //       skip: skip,
+  //       take: limit,
+  //       // DHYAN DEIN: Hum yahan selectively data bhej rahe hain
+  //       select: {
+  //         id: true,
+  //         name: true,
+  //         description: true,
+  //         material: true,
+  //         tags: true,
+  //         metadata: true,
+  //         price: true,
+  //         images: true, // Cloudinary URLs yahan aayengi
+  //         colorName: true,
+  //         colorHex: true,
+  //         stockQuantity: true,
+  //         lowStockThreshold: true,
+  //         fabricProfile: {
+  //           select: {
+  //             fabricType: true,
+  //             isPremium: true,
+  //             premiumPrice: true,
+  //           },
+  //         },
+  //         category: {
+  //           select: { id: true, name: true, type: true, slug: true }
+  //         }
+  //       },
+  //       orderBy: orderByClause // Ab hardcoded nahi, dynamic hai!
+  //     }),
+  //     prisma.inventoryItem.count({ where: whereClause })
+  //   ]);
+
+  //   const hydratedItems = items.map((item) => {
+  //     const normalizedTagsFromDb = this.normalizeTags(item.tags);
+  //     const normalizedTagsFromMeta = this.normalizeTags(item.metadata?.tags);
+  //     const materialTag = item.material ? this.normalizeTags([item.material]) : [];
+  //     const fabricTypeTag = item.fabricProfile?.fabricType ? this.normalizeTags([item.fabricProfile.fabricType]) : [];
+  //     const premiumTag = item.fabricProfile?.isPremium ? ['premium'] : [];
+  //     const tags = [...new Set([
+  //       ...normalizedTagsFromDb,
+  //       ...normalizedTagsFromMeta,
+  //       ...materialTag,
+  //       ...fabricTypeTag,
+  //       ...premiumTag,
+  //     ])];
+  //     return { ...item, tags };
+  //   });
+
+  //   return {
+  //     items: hydratedItems,
+  //     pagination: {
+  //       totalItems: totalCount,
+  //       currentPage: page,
+  //       totalPages: Math.ceil(totalCount / limit),
+  //       itemsPerPage: limit
+  //     }
+  //   };
+  // }
+
+  // 👁️ VIEW INCREMENT
+  async incrementItemView(itemId) {
+    try {
+      const updatedItem = await prisma.inventoryItem.update({
+        where: { id: itemId },
+        data: { viewsCount: { increment: 1 } }
+      });
+      return updatedItem.viewsCount;
+    } catch (error) {
+      console.error("🔥 Error incrementing item view:", error);
+      throw new Error("Failed to update view count");
+    }
+  }
+
+  // ❤️ TOGGLE LIKE
+  async toggleItemLike(userId, itemId) {
+    try {
+      const existingLike = await prisma.inventoryItemLike.findUnique({
+        where: { userId_inventoryItemId: { userId, inventoryItemId: itemId } }
+      });
+
+      if (existingLike) {
+        await prisma.$transaction([
+          prisma.inventoryItemLike.delete({ where: { id: existingLike.id } }),
+          prisma.inventoryItem.update({
+            where: { id: itemId },
+            data: { likesCount: { decrement: 1 } }
+          })
+        ]);
+        return { message: "Item unliked", liked: false };
+      } else {
+        await prisma.$transaction([
+          prisma.inventoryItemLike.create({ data: { userId, inventoryItemId: itemId } }),
+          prisma.inventoryItem.update({
+            where: { id: itemId },
+            data: { likesCount: { increment: 1 } }
+          })
+        ]);
+        return { message: "Item liked", liked: true };
+      }
+    } catch (error) {
+      console.error("🔥 Error toggling item like:", error);
+      throw new Error("Failed to toggle like status");
+    }
   }
 }
 
