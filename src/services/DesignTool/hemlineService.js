@@ -29,26 +29,44 @@ class HemlineService {
   // REORDER CATEGORIES
   // ==========================================
   async reorderCategories(orderedIds) {
-    const transaction = orderedIds.map((id, index) => {
-      return prisma.hemlineCategory.update({
-        where: { categoryId: id },
-        data: { sortOrder: index }
-      });
+    return await prisma.$transaction(async (tx) => {
+      for (let index = 0; index < orderedIds.length; index += 1) {
+        const id = orderedIds[index];
+        const category = await tx.hemlineCategory.findFirst({
+          where: {
+            OR: [{ categoryId: id }, { frontendId: id }]
+          },
+          select: { categoryId: true }
+        });
+        if (!category) continue;
+        await tx.hemlineCategory.update({
+          where: { categoryId: category.categoryId },
+          data: { sortOrder: index }
+        });
+      }
     });
-    return await prisma.$transaction(transaction);
   }
 
   // ==========================================
   // REORDER OPTIONS
   // ==========================================
   async reorderOptions(orderedIds) {
-    const transaction = orderedIds.map((id, index) => {
-      return prisma.hemlineOption.update({
-        where: { optionId: id },
-        data: { sortOrder: index }
-      });
+    return await prisma.$transaction(async (tx) => {
+      for (let index = 0; index < orderedIds.length; index += 1) {
+        const id = orderedIds[index];
+        const option = await tx.hemlineOption.findFirst({
+          where: {
+            OR: [{ optionId: id }, { frontendId: id }]
+          },
+          select: { optionId: true }
+        });
+        if (!option) continue;
+        await tx.hemlineOption.update({
+          where: { optionId: option.optionId },
+          data: { sortOrder: index }
+        });
+      }
     });
-    return await prisma.$transaction(transaction);
   }
 
   // 3. Update a Category
@@ -78,6 +96,7 @@ class HemlineService {
         shapeTag: data.shapeTag || null, // 👈 Nayi field
         
         // Removed images & keywords from here
+        image: data.image || [],
         tags: data.tags || [],
         layers: data.layers || [], // Cloudinary URLs controller se set ho kar yahan aayenge
         
@@ -95,6 +114,7 @@ class HemlineService {
     if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
     if (updateData.shapeTag !== undefined) dataToUpdate.shapeTag = updateData.shapeTag;
     
+    if (updateData.image !== undefined) dataToUpdate.image = updateData.image;
     if (updateData.tags !== undefined) dataToUpdate.tags = updateData.tags;
     if (updateData.layers !== undefined) dataToUpdate.layers = updateData.layers;
     
@@ -136,6 +156,7 @@ class HemlineService {
         name: opt.name,
         shapeTag: opt.shapeTag, // 👈 Frontend ko shapeTag zaroor chahiye tha
         
+        image: opt.image,
         tags: opt.tags,
         layers: opt.layers,
         premium: opt.isPremium,

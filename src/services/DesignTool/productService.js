@@ -209,7 +209,10 @@ class ProductService {
           name: opt.name,
           type: opt.type || "subtractive",
           hasButtons: opt.hasButtons || false,
-          images: opt.images || [],
+          // Some option models (e.g. HemlineOption) use `image` (array),
+          // while others use `images`. Expose both consistently.
+          image: opt.image || opt.images || [],
+          images: opt.images || opt.image || [],
           keywords: opt.keywords || [],
           tags: opt.tags || [],
           layers: opt.layers || [],
@@ -288,6 +291,24 @@ class ProductService {
           { category: { sortOrder: 'asc' } },
           { sortOrder: 'asc' }
         ]
+      });
+      // Preserve per-product drag order from allowedHemlineOptionIds.
+      // The allow-list can contain either optionId or frontendId.
+      const hemlineOrderIndex = new Map(
+        product.allowedHemlineOptionIds.map((id, idx) => [id, idx])
+      );
+      hemlines.sort((a, b) => {
+        const aIdx = Math.min(
+          hemlineOrderIndex.get(a.optionId) ?? Number.MAX_SAFE_INTEGER,
+          hemlineOrderIndex.get(a.frontendId) ?? Number.MAX_SAFE_INTEGER
+        );
+        const bIdx = Math.min(
+          hemlineOrderIndex.get(b.optionId) ?? Number.MAX_SAFE_INTEGER,
+          hemlineOrderIndex.get(b.frontendId) ?? Number.MAX_SAFE_INTEGER
+        );
+        if (aIdx !== bIdx) return aIdx - bIdx;
+        // Stable fallback when some options are not in the allow-list map.
+        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
       });
       hemlinesData = groupByCategory(hemlines);
     }

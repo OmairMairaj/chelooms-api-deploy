@@ -114,6 +114,10 @@ class HemlineController {
         });
       }
 
+      if (req.files && req.files.optionImage && req.files.optionImage.length > 0) {
+        payload.image = [req.files.optionImage[0].path];
+      }
+
       const finalData = { 
         ...payload, 
         layers: parsedLayers // Updated layers with Cloudinary URLs
@@ -146,6 +150,10 @@ class HemlineController {
             parsedLayers[index].svgUrl = file.path;
           }
         });
+      }
+
+      if (req.files && req.files.optionImage && req.files.optionImage.length > 0) {
+        payload.image = [req.files.optionImage[0].path];
       }
 
       // Agar layers update hue hain toh payload mein updated wale daal do

@@ -598,6 +598,7 @@ model HemlineOption {
   shapeTag      String?         // e.g., "round", "square"
   
   // 🖼️ Media & Data (Images & Keywords hat gaye hain)
+  image         String[]        // Style thumbnail image(s)
   tags          String[] 
   layers        Json            // Isme jo SVGs aayengi wo Cloudinary se hongi
   

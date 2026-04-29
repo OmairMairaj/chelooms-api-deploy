@@ -106,6 +106,68 @@ async function deriveDesignColorsFromCanvas(canvasData) {
   return dedupeColors(derived);
 }
 
+async function enrichCanvasDataDisplayFields(canvasData) {
+  if (!canvasData || typeof canvasData !== 'object') return canvasData;
+  const next = JSON.parse(JSON.stringify(canvasData));
+
+  // Fabric display name enrichment (non-breaking additive field).
+  const fabricId = next?.fabric?.option_1_id;
+  if (typeof fabricId === 'string' && fabricId.trim()) {
+    const hasName = typeof next?.fabric?.option_1_name === 'string' && next.fabric.option_1_name.trim();
+    if (!hasName) {
+      const fabric = await prisma.inventoryItem.findUnique({
+        where: { id: fabricId.trim() },
+        select: { name: true },
+      });
+      if (fabric?.name) {
+        next.fabric = {
+          ...(next.fabric || {}),
+          option_1_name: fabric.name,
+        };
+      }
+    }
+  }
+
+  // Embellishment style/variation names enrichment.
+  const emb = next?.embellishment;
+  if (emb && typeof emb === 'object') {
+    const styleId = typeof emb.style_id === 'string' && emb.style_id.trim() ? emb.style_id.trim() : null;
+    const variationId = typeof emb.variation_id === 'string' && emb.variation_id.trim() ? emb.variation_id.trim() : null;
+
+    if (styleId && !(typeof emb.style_name === 'string' && emb.style_name.trim())) {
+      const style = await prisma.embellishmentCategory.findFirst({
+        where: {
+          OR: [{ frontendId: styleId }, { categoryId: styleId }],
+        },
+        select: { name: true },
+      });
+      if (style?.name) {
+        next.embellishment = {
+          ...(next.embellishment || {}),
+          style_name: style.name,
+        };
+      }
+    }
+
+    if (variationId && !(typeof emb.variation_name === 'string' && emb.variation_name.trim())) {
+      const option = await prisma.embellishmentOption.findFirst({
+        where: {
+          OR: [{ frontendId: variationId }, { optionId: variationId }],
+        },
+        select: { name: true },
+      });
+      if (option?.name) {
+        next.embellishment = {
+          ...(next.embellishment || {}),
+          variation_name: option.name,
+        };
+      }
+    }
+  }
+
+  return next;
+}
+
 const savedDesignService = {
   
   async saveNewDesign(data) {
@@ -115,11 +177,13 @@ const savedDesignService = {
       const parsedRatio = Number(data.aspectRatio);
       const aspectRatio = Number.isFinite(parsedRatio) && parsedRatio > 0 ? parsedRatio : 1.0;
 
+      const enrichedCanvasData = await enrichCanvasDataDisplayFields(data.canvasData);
+
       const providedColors = asArray(data.colors)
         .map((c) => normalizeColorEntry(c, 'design'))
         .filter(Boolean);
       const resolvedColors =
-        providedColors.length > 0 ? dedupeColors(providedColors) : await deriveDesignColorsFromCanvas(data.canvasData);
+        providedColors.length > 0 ? dedupeColors(providedColors) : await deriveDesignColorsFromCanvas(enrichedCanvasData);
 
       // 🚨 Hum Transaction use kar rahe hain taake dono kaam ek sath hon
       const result = await prisma.$transaction(async (tx) => {
@@ -130,7 +194,7 @@ const savedDesignService = {
             userId: data.userId,
             productId: data.productId,
             designName: data.designName || "My Custom Design",
-            canvasData: data.canvasData,
+            canvasData: enrichedCanvasData,
             status: data.status || "private",
             thumbnailUrl: data.thumbnailUrl || null,
             //aspectRatio: aspectRatio,
@@ -214,7 +278,11 @@ const savedDesignService = {
           canvasData: true,
         },
       });
-      return design;
+      if (!design) return null;
+      return {
+        ...design,
+        canvasData: await enrichCanvasDataDisplayFields(design.canvasData),
+      };
     } catch (dbError) {
       console.error('🔥 DATABASE ERROR IN getPublishedCanvasBySaveDesignId:', dbError);
       throw dbError;
@@ -288,14 +356,15 @@ const savedDesignService = {
       });
 
       // 🎯 4. isLiked Formatting Logic (Purani wali same rahegi)
-      const formattedDesigns = designs.map(design => {
+      const formattedDesigns = await Promise.all(designs.map(async (design) => {
         const isLiked = design.likes && design.likes.length > 0;
         const { likes, ...cleanDesign } = design; 
         return {
           ...cleanDesign,
+          canvasData: await enrichCanvasDataDisplayFields(cleanDesign.canvasData),
           isLiked: isLiked
         };
-      });
+      }));
 
       // 🧮 5. Pagination Total Count (Where condition isme bhi lagayenge taake search sahi chale)
       const total = await prisma.savedDesign.count({

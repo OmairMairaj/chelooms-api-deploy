@@ -45,7 +45,10 @@ router.post('/option',
     protect, 
     authorize('Administrator'), 
     // Yahan humne maxCount 10 rakha hai taake 10 layers tak ki SVGs ek sath upload ho sakein
-    upload.fields([{ name: 'layerImages', maxCount: 10 }]), 
+    upload.fields([
+        { name: 'layerImages', maxCount: 10 },
+        { name: 'optionImage', maxCount: 1 }
+    ]), 
     hemlineController.createOption
 );
 
@@ -53,7 +56,10 @@ router.post('/option',
 router.put('/option/:id', 
     protect, 
     authorize('Administrator'), 
-    upload.fields([{ name: 'layerImages', maxCount: 10 }]), 
+    upload.fields([
+        { name: 'layerImages', maxCount: 10 },
+        { name: 'optionImage', maxCount: 1 }
+    ]), 
     hemlineController.updateOption
 );
 
