@@ -22,6 +22,7 @@ const productRoutes = require('./routes/DesignTool/productRoutes');
 const productCategoryRoutes = require('./routes/DesignTool/productCategoryRoutes');
 const savedDesignRoutes = require('./routes/savedDesignRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const contactRoutes = require('./routes/contactRoutes');
 const app = express();
 
 
@@ -296,7 +297,7 @@ app.use('/api/design-tool/button-options', buttonOptionRoutes);
 app.use('/api/design-tool/products', productRoutes);
 app.use('/api/design-tool/product-categories', productCategoryRoutes);
 app.use('/api/design-tool/saved-designs', savedDesignRoutes);
-
+app.use('/api/contact', contactRoutes);
 // --- Global Error Handler ---
 app.use((err, req, res, next) => {
   console.error(err.stack);
