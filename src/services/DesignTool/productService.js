@@ -613,13 +613,81 @@ class ProductService {
   // ==================================================
   // 🛍️ FRONTEND: GET ALL PRODUCTS GROUPED BY CATEGORY
   // ==================================================
+  // async getAllProductsGroupedByCategory() {
+  //   // 1. Fetch all Active Categories aur unke andar sirf "Publish" products
+  //   const categories = await prisma.productCategory.findMany({
+  //     where: { isActive: true },
+  //     include: {
+  //       products: {
+  //         where: { status: "Publish" },
+  //         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+  //       }
+  //     },
+  //     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  //   });
+
+  //   const groupedData = [];
+
+  //   // 2. Loop through categories and format
+  //   for (const category of categories) {
+  //     // Products ko format karo
+  //     const formattedProducts = await Promise.all((category.products || []).map(async (product) => {
+  //       return {
+  //         product_id: product.id,
+  //         sortOrder: product.sortOrder,
+  //         name: product.name,
+  //         category: category.name,
+  //         images: product.images || [],
+  //         thumbnails: product.thumbnails || [],
+  //         base_stitching_price: product.baseStitchingPrice,
+  //         status: product.status,
+  //         season_tags: product.seasonTags || [],
+  //         created_at: product.createdAt,
+  //         updated_at: product.updatedAt,
+          
+  //         // 🚫 modification_options HATA DIYA GAYA HAI
+  //         // 🚫 default_design HATA DIYA GAYA HAI
+
+  //         // 📊 Spec Display Summary
+  //         spec_display: {
+  //           fabric: `${product.allowedFabricIds?.length || 0} fabrics`,
+  //           neckStyles: `${product.allowedNecklineOptionIds?.length || 0} styles`,
+  //           sleeves: `${product.allowedSleeveOptionIds?.length || 0} styles`,
+  //           hemline: `${product.allowedHemlineOptionIds?.length || 0} styles`,
+  //           sideSlits: `${product.allowedSideSlitIds?.length || 0} styles`,
+  //           embellishments: `${product.allowedEmbellishmentOptionIds?.length || 0} styles`
+  //         },
+
+  //         piece_type: product.pieceType
+  //       };
+  //     }));
+
+  //     // Group format build karna (empty categories are intentionally included)
+  //     groupedData.push({
+  //       categoryId: category.productCategoryId, // Aapka naya primary key standard
+  //       name: category.name,
+  //       sortOrder: category.sortOrder,
+  //       products: formattedProducts
+  //     });
+  //   }
+
+  //   return groupedData;
+  // }
+
   async getAllProductsGroupedByCategory() {
-    // 1. Fetch all Active Categories aur unke andar sirf "Publish" products
+    // 1. Fetch all Active Categories aur unke andar sirf "Publish" aur "Non-Deleted" products
     const categories = await prisma.productCategory.findMany({
-      where: { isActive: true },
+      where: { 
+        isActive: true,
+        // Agar category mein bhi soft delete hai toh yahan bhi laga dain:
+        // deletedAt: null 
+      },
       include: {
         products: {
-          where: { status: "Publish" },
+          where: { 
+            status: "Publish",
+            deletedAt: null // 👈 YAHAN CONDITION ADD KI HAI
+          },
           orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
         }
       },
