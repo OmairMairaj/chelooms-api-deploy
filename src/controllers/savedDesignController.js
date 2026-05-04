@@ -283,10 +283,34 @@ const savedDesignController = {
   // GET ALL PUBLISHED DESIGNS (Gallery)
   async getPublishedDesigns(req, res) {
     try {
+      res.set('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=120');
       const byId = req.query.saveDesignId || req.query.designId;
       if (byId && String(byId).trim()) {
-        const row = await savedDesignService.getPublishedCanvasBySaveDesignId(String(byId).trim());
-        if (!row) {
+        const trimmed = String(byId).trim();
+        const canvasOnly =
+          req.query.canvasOnly === '1' ||
+          req.query.canvasOnly === 'true' ||
+          req.query.shape === 'canvas';
+        if (canvasOnly) {
+          const row = await savedDesignService.getPublishedCanvasBySaveDesignId(trimmed);
+          if (!row) {
+            return res.status(404).json({
+              success: false,
+              message: 'Published design not found.',
+            });
+          }
+          return res.status(200).json({
+            success: true,
+            data: {
+              saveDesignId: row.saveDesignId,
+              productId: row.productId,
+              canvasData: row.canvasData,
+            },
+          });
+        }
+        const userIdForLike = req.user ? req.user.user_id : null;
+        const full = await savedDesignService.getPublishedDesignBySaveDesignId(trimmed, userIdForLike);
+        if (!full) {
           return res.status(404).json({
             success: false,
             message: 'Published design not found.',
@@ -294,11 +318,7 @@ const savedDesignController = {
         }
         return res.status(200).json({
           success: true,
-          data: {
-            saveDesignId: row.saveDesignId,
-            productId: row.productId,
-            canvasData: row.canvasData,
-          },
+          data: full,
         });
       }
 

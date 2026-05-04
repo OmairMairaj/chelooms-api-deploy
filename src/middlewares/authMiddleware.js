@@ -115,7 +115,7 @@ const identifyUserOrGuest = async (req, res, next) => {
             req.user = await prisma.user.findUnique({ where: { user_id: userId } });
         }
       } catch (error) {
-        console.log("Token invalid, treating as Guest");
+        // Treat as Guest silently — invalid/expired tokens are common for crawlers.
       }
     }
   
@@ -149,7 +149,7 @@ const optionalAuth = async (req, res, next) => {
             req.user = { user_id: userId }; // Controller ko userId mil jayega
         }
       } catch (error) {
-        console.log("⚠️ Optional Auth: Invalid or expired token, treating as Guest.");
+        // Treat as Guest silently — invalid/expired tokens are common.
       }
     }
     

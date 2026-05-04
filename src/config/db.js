@@ -1,21 +1,25 @@
 // src/config/db.js
 
-// 1. PrismaClient library ko import kiya
 const { PrismaClient } = require('@prisma/client');
 
+const isProd = process.env.NODE_ENV === 'production';
+const verboseLogs = process.env.PRISMA_VERBOSE === '1';
 
 const prisma = new PrismaClient({
-    log: ['query', 'info', 'warn', 'error'], 
+    log: verboseLogs
+        ? ['query', 'info', 'warn', 'error']
+        : isProd
+            ? ['error']
+            : ['warn', 'error'],
 });
 
-// 3. Connection Test Function
 async function connectDB() {
     try {
         await prisma.$connect();
         console.log('Prisma Connected Successfully to PostgreSQL');
     } catch (error) {
-        console.error('❌ Prisma Connection Failed:', error);
-        process.exit(1); 
+        console.error('Prisma Connection Failed:', error);
+        process.exit(1);
     }
 }
 

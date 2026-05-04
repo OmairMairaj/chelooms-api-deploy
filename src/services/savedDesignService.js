@@ -106,6 +106,113 @@ async function deriveDesignColorsFromCanvas(canvasData) {
   return dedupeColors(derived);
 }
 
+/**
+ * Batched enrichment for arrays of canvas payloads — collects ids that need
+ * lookup once and executes 3 batched queries instead of 3 per row.
+ */
+async function enrichCanvasDataDisplayFieldsBatch(canvasList) {
+  if (!Array.isArray(canvasList) || canvasList.length === 0) return canvasList;
+
+  const fabricIds = new Set();
+  const styleIds = new Set();
+  const variationIds = new Set();
+
+  const cloned = canvasList.map((c) => {
+    if (!c || typeof c !== 'object') return c;
+    return JSON.parse(JSON.stringify(c));
+  });
+
+  cloned.forEach((next) => {
+    if (!next || typeof next !== 'object') return;
+    const fabricId = next?.fabric?.option_1_id;
+    const hasFabricName = typeof next?.fabric?.option_1_name === 'string' && next.fabric.option_1_name.trim();
+    if (typeof fabricId === 'string' && fabricId.trim() && !hasFabricName) {
+      fabricIds.add(fabricId.trim());
+    }
+    const emb = next?.embellishment;
+    if (emb && typeof emb === 'object') {
+      const styleId = typeof emb.style_id === 'string' && emb.style_id.trim() ? emb.style_id.trim() : null;
+      const variationId = typeof emb.variation_id === 'string' && emb.variation_id.trim() ? emb.variation_id.trim() : null;
+      const hasStyleName = typeof emb.style_name === 'string' && emb.style_name.trim();
+      const hasVariationName = typeof emb.variation_name === 'string' && emb.variation_name.trim();
+      if (styleId && !hasStyleName) styleIds.add(styleId);
+      if (variationId && !hasVariationName) variationIds.add(variationId);
+    }
+  });
+
+  const [fabrics, styles, options] = await Promise.all([
+    fabricIds.size > 0
+      ? prisma.inventoryItem.findMany({
+          where: { id: { in: Array.from(fabricIds) } },
+          select: { id: true, name: true },
+        })
+      : Promise.resolve([]),
+    styleIds.size > 0
+      ? prisma.embellishmentCategory.findMany({
+          where: {
+            OR: [
+              { frontendId: { in: Array.from(styleIds) } },
+              { categoryId: { in: Array.from(styleIds) } },
+            ],
+          },
+          select: { frontendId: true, categoryId: true, name: true },
+        })
+      : Promise.resolve([]),
+    variationIds.size > 0
+      ? prisma.embellishmentOption.findMany({
+          where: {
+            OR: [
+              { frontendId: { in: Array.from(variationIds) } },
+              { optionId: { in: Array.from(variationIds) } },
+            ],
+          },
+          select: { frontendId: true, optionId: true, name: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const fabricMap = new Map();
+  fabrics.forEach((f) => f?.id && f?.name && fabricMap.set(f.id, f.name));
+
+  const styleMap = new Map();
+  styles.forEach((s) => {
+    if (!s?.name) return;
+    if (s.frontendId) styleMap.set(s.frontendId, s.name);
+    if (s.categoryId) styleMap.set(s.categoryId, s.name);
+  });
+
+  const variationMap = new Map();
+  options.forEach((o) => {
+    if (!o?.name) return;
+    if (o.frontendId) variationMap.set(o.frontendId, o.name);
+    if (o.optionId) variationMap.set(o.optionId, o.name);
+  });
+
+  cloned.forEach((next) => {
+    if (!next || typeof next !== 'object') return;
+    const fabricId = next?.fabric?.option_1_id;
+    const hasFabricName = typeof next?.fabric?.option_1_name === 'string' && next.fabric.option_1_name.trim();
+    if (typeof fabricId === 'string' && fabricMap.has(fabricId.trim()) && !hasFabricName) {
+      next.fabric = { ...(next.fabric || {}), option_1_name: fabricMap.get(fabricId.trim()) };
+    }
+    const emb = next?.embellishment;
+    if (emb && typeof emb === 'object') {
+      const styleId = typeof emb.style_id === 'string' ? emb.style_id.trim() : '';
+      const variationId = typeof emb.variation_id === 'string' ? emb.variation_id.trim() : '';
+      const hasStyleName = typeof emb.style_name === 'string' && emb.style_name.trim();
+      const hasVariationName = typeof emb.variation_name === 'string' && emb.variation_name.trim();
+      if (styleId && styleMap.has(styleId) && !hasStyleName) {
+        next.embellishment = { ...(next.embellishment || {}), style_name: styleMap.get(styleId) };
+      }
+      if (variationId && variationMap.has(variationId) && !hasVariationName) {
+        next.embellishment = { ...(next.embellishment || {}), variation_name: variationMap.get(variationId) };
+      }
+    }
+  });
+
+  return cloned;
+}
+
 async function enrichCanvasDataDisplayFields(canvasData) {
   if (!canvasData || typeof canvasData !== 'object') return canvasData;
   const next = JSON.parse(JSON.stringify(canvasData));
@@ -289,6 +396,49 @@ const savedDesignService = {
     }
   },
 
+  /**
+   * Full published design payload by id — used by storefront detail pages so
+   * they don't have to scan the paginated list to find one design.
+   */
+  async getPublishedDesignBySaveDesignId(saveDesignId, userId = null) {
+    if (!saveDesignId || typeof saveDesignId !== 'string') return null;
+    try {
+      const design = await prisma.savedDesign.findFirst({
+        where: {
+          saveDesignId: saveDesignId.trim(),
+          status: 'published',
+          isActive: true,
+        },
+        include: {
+          user: {
+            select: { first_name: true, last_name: true, profile_picture_url: true },
+          },
+          product: {
+            select: { name: true, baseStitchingPrice: true },
+          },
+          ...(userId && {
+            likes: {
+              where: { userId },
+              select: { id: true },
+            },
+          }),
+        },
+      });
+      if (!design) return null;
+      const isLiked = Array.isArray(design.likes) && design.likes.length > 0;
+      const { likes, ...rest } = design;
+      void likes;
+      return {
+        ...rest,
+        canvasData: await enrichCanvasDataDisplayFields(rest.canvasData),
+        isLiked,
+      };
+    } catch (dbError) {
+      console.error('🔥 DATABASE ERROR IN getPublishedDesignBySaveDesignId:', dbError);
+      throw dbError;
+    }
+  },
+
   async getAllPublishedDesigns(page = 1, limit = 10, userId = null, search = '', sortBy = 'newest', color = '') {
     try {
       const skip = (page - 1) * limit;
@@ -333,52 +483,55 @@ const savedDesignService = {
           break;
       }
 
-      // 🚀 3. DATABASE QUERY
-      const designs = await prisma.savedDesign.findMany({
-        where: whereCondition,
-        skip: skip,
-        take: limit,
-        orderBy: orderByCondition, // 👈 Dynamic sorting lag gayi
-        include: {
-          user: { 
-            select: { first_name: true, last_name: true, profile_picture_url: true } 
+      // 🚀 3. DATABASE QUERY — page rows + total count in parallel
+      const [designs, total] = await Promise.all([
+        prisma.savedDesign.findMany({
+          where: whereCondition,
+          skip: skip,
+          take: limit,
+          orderBy: orderByCondition,
+          include: {
+            user: {
+              select: { first_name: true, last_name: true, profile_picture_url: true },
+            },
+            product: {
+              select: { name: true, baseStitchingPrice: true },
+            },
+            ...(userId && {
+              likes: {
+                where: { userId: userId },
+                select: { id: true },
+              },
+            }),
           },
-          product: { 
-            select: { name: true, baseStitchingPrice: true } 
-          },
-          ...(userId && {
-            likes: {
-              where: { userId: userId },
-              select: { id: true } 
-            }
-          })
-        }
-      });
+        }),
+        prisma.savedDesign.count({ where: whereCondition }),
+      ]);
 
-      // 🎯 4. isLiked Formatting Logic (Purani wali same rahegi)
-      const formattedDesigns = await Promise.all(designs.map(async (design) => {
+      // 🎯 Batch-enrich canvas data (collapses N+1 → 3 queries total)
+      const enrichedCanvases = await enrichCanvasDataDisplayFieldsBatch(
+        designs.map((d) => d.canvasData)
+      );
+
+      const formattedDesigns = designs.map((design, idx) => {
         const isLiked = design.likes && design.likes.length > 0;
-        const { likes, ...cleanDesign } = design; 
+        const { likes, ...cleanDesign } = design;
+        void likes;
         return {
           ...cleanDesign,
-          canvasData: await enrichCanvasDataDisplayFields(cleanDesign.canvasData),
-          isLiked: isLiked
+          canvasData: enrichedCanvases[idx],
+          isLiked,
         };
-      }));
-
-      // 🧮 5. Pagination Total Count (Where condition isme bhi lagayenge taake search sahi chale)
-      const total = await prisma.savedDesign.count({
-        where: whereCondition
       });
 
-      return { 
-        designs: formattedDesigns, 
+      return {
+        designs: formattedDesigns,
         meta: {
-          total, 
-          currentPage: page, 
+          total,
+          currentPage: page,
           totalPages: Math.ceil(total / limit),
-          hasMore: page * limit < total
-        }
+          hasMore: page * limit < total,
+        },
       };
       
     } catch (dbError) {

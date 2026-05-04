@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const path = require('path');
 const fs = require('fs');
 const routes = require('./routes/index'); // Make sure ye path sahi ho
@@ -30,6 +31,7 @@ const app = express();
 
 // 1. Security Headers
 app.use(helmet());
+app.use(compression());
 
 // 2. CORS Configuration
 // Allow the storefront (cheloom-frontend) and admin panel (chelooms-admin) in dev.
@@ -75,6 +77,34 @@ app.use(cors({
 
 // 3. Body Parser
 app.use(express.json());
+
+// 3.1 Public API caching hints (browser/CDN friendly)
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+  // High-churn list endpoints — small TTL, generous SWR.
+  if (
+    req.path.startsWith('/api/gallery/items') ||
+    req.path === '/api/gallery/fabrics/facets' ||
+    req.path.startsWith('/api/design-tool/saved-designs/published')
+  ) {
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60, stale-while-revalidate=120');
+    return next();
+  }
+  // Catalog data that changes only on admin edits — longer TTL with SWR.
+  if (
+    req.path.startsWith('/api/design-tool/products') ||
+    req.path.startsWith('/api/design-tool/product-categories') ||
+    req.path.startsWith('/api/design-tool/necklines') ||
+    req.path.startsWith('/api/design-tool/sleeves') ||
+    req.path.startsWith('/api/design-tool/hemlines') ||
+    req.path.startsWith('/api/design-tool/side-slits') ||
+    req.path.startsWith('/api/design-tool/embellishments') ||
+    req.path.startsWith('/api/design-tool/button-options')
+  ) {
+    res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=300, stale-while-revalidate=600');
+  }
+  next();
+});
 
 // 4. Static uploads (local disk fallback for images/thumbnails)
 // When Cloudinary is not configured, multer stores files in `<project>/uploads`.

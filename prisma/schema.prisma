@@ -259,6 +259,9 @@ model InventoryItem {
 
   embellishmentOptions EmbellishmentOption[]
 
+  @@index([categoryId, isActive])
+  @@index([isActive, createdAt])
+  @@index([categoryId, isActive, stockQuantity])
   @@map("inventory_items")
 }
 
@@ -778,10 +781,13 @@ model Product {
   savedDesigns  SavedDesign[]
 
   createdAt                     DateTime @default(now()) @db.Timestamptz
-  updatedAt                     DateTime @updatedAt @db.Timestamptz
-  deletedAt DateTime?
+   updatedAt                     DateTime @updatedAt @db.Timestamptz
+   deletedAt DateTime?
 
-  @@map("products")
+   @@index([status, deletedAt])
+   @@index([productCategoryId, status])
+   @@index([sortOrder])
+   @@map("products")
 }
 
 
@@ -842,6 +848,12 @@ model SavedDesign {
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([status, isActive, createdAt])
+  @@index([status, isActive, likesCount])
+  @@index([status, isActive, viewsCount])
+  @@index([userId])
+  @@index([productId])
 }
 
 

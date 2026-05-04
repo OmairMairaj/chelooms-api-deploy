@@ -1,5 +1,31 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../../config/db');
+
+// ─── In-memory caches for hot read paths ──────────────────────────────────────
+// `getProductForFrontend` is hit on every customize page load and runs ~8
+// sequential Prisma round-trips. Cache the assembled JSON keyed by
+// (productId, updatedAt) — invalidates automatically the next time the
+// product's `updatedAt` changes (via admin updateProduct/restoreProduct).
+const productCanvasCache = new Map(); // productId -> { key, ttl, data }
+const PRODUCT_CANVAS_TTL_MS = 5 * 60 * 1000; // safety TTL even if no edit
+
+// `buttonOption.findMany()` is currently called with no `where`, returning the
+// entire button table on every customize load. Cache for a short window since
+// admins rarely change buttons; cache buster runs on admin button mutations.
+let buttonOptionsCache = null; // { ttl, data }
+const BUTTON_OPTIONS_TTL_MS = 5 * 60 * 1000;
+
+function invalidateProductCanvasCache(productId) {
+  if (!productId) return;
+  productCanvasCache.delete(productId);
+}
+
+function invalidateAllProductCanvasCache() {
+  productCanvasCache.clear();
+}
+
+function invalidateButtonOptionsCache() {
+  buttonOptionsCache = null;
+}
 
 class ProductService {
   async createProduct(data) {
@@ -50,6 +76,8 @@ class ProductService {
       data: updateData
     });
 
+    invalidateProductCanvasCache(id);
+
     return updatedProduct;
   }
 
@@ -92,6 +120,8 @@ class ProductService {
       throw new Error("Product not found");
     }
 
+    invalidateProductCanvasCache(id);
+
     if (isHardDelete) {
       // 🚨 HARD DELETE: Database se hamesha ke liye delete
       return await prisma.product.delete({
@@ -115,6 +145,8 @@ class ProductService {
       throw new Error("Product not found");
     }
 
+    invalidateProductCanvasCache(id);
+
     return await prisma.product.update({
       where: { id },
       data: { deletedAt: null } // 👈 Dobara null kar diya, matlab active ho gaya!
@@ -125,6 +157,37 @@ class ProductService {
   // 🧠 THE MASTER ASSEMBLY API (For E-com Frontend)
   // ==================================================
   async getProductForFrontend(productId) {
+    if (productId && typeof productId === 'string') {
+      const cached = productCanvasCache.get(productId);
+      if (cached && cached.ttl > Date.now()) {
+        // Probe `updatedAt` cheaply to detect admin edits we may have missed.
+        const stamp = await prisma.product.findUnique({
+          where: { id: productId },
+          select: { updatedAt: true },
+        });
+        const liveKey = stamp?.updatedAt ? new Date(stamp.updatedAt).getTime() : null;
+        if (liveKey && liveKey === cached.key) {
+          return cached.data;
+        }
+        productCanvasCache.delete(productId);
+      }
+    }
+
+    const data = await this._buildProductForFrontend(productId);
+
+    if (productId && typeof productId === 'string') {
+      const stampMs = data?.updated_at ? new Date(data.updated_at).getTime() : Date.now();
+      productCanvasCache.set(productId, {
+        key: stampMs,
+        ttl: Date.now() + PRODUCT_CANVAS_TTL_MS,
+        data,
+      });
+    }
+
+    return data;
+  }
+
+  async _buildProductForFrontend(productId) {
     // 1. Fetch Basic Product
     // const product = await prisma.product.findUnique({
     //   where: { id: productId }
@@ -360,15 +423,24 @@ class ProductService {
       embellishmentsData = groupByCategory(embellishments);
     }
 
-    // 8. 🔘 Buttons (Bonus: Fetch all buttons if needed, or you can link them later)
-    const allButtons = await prisma.buttonOption.findMany();
-    const buttonOptionsData = allButtons.map(btn => ({
-      id: btn.frontendId || btn.buttonId,
-      name: btn.name,
-      premium: btn.premium,
-      premium_price: btn.premiumPrice || 0,
-      colors: btn.colors || []
-    }));
+    // 8. 🔘 Buttons — global option list, very rarely changes; cache short-term.
+    let buttonOptionsData;
+    if (buttonOptionsCache && buttonOptionsCache.ttl > Date.now()) {
+      buttonOptionsData = buttonOptionsCache.data;
+    } else {
+      const allButtons = await prisma.buttonOption.findMany();
+      buttonOptionsData = allButtons.map(btn => ({
+        id: btn.frontendId || btn.buttonId,
+        name: btn.name,
+        premium: btn.premium,
+        premium_price: btn.premiumPrice || 0,
+        colors: btn.colors || []
+      }));
+      buttonOptionsCache = {
+        ttl: Date.now() + BUTTON_OPTIONS_TTL_MS,
+        data: buttonOptionsData,
+      };
+    }
 
     // ==========================================
     // 🎁 ASSEMBLE THE EXACT FRONTEND JSON
@@ -754,4 +826,9 @@ class ProductService {
 
 }
 
-module.exports = new ProductService();
+const productServiceInstance = new ProductService();
+productServiceInstance.invalidateProductCanvasCache = invalidateProductCanvasCache;
+productServiceInstance.invalidateAllProductCanvasCache = invalidateAllProductCanvasCache;
+productServiceInstance.invalidateButtonOptionsCache = invalidateButtonOptionsCache;
+
+module.exports = productServiceInstance;
